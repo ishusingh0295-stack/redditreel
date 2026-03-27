@@ -12,6 +12,7 @@ export default async function UserAvatar() {
       email={user.email ?? ''}
       image={user.image ?? null}
       role={(user as any).role ?? 'USER'}
+      userId={user.id}
     />
   );
 }

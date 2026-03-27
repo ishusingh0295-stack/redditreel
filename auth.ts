@@ -8,28 +8,6 @@ const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 export const prisma = globalForPrisma.prisma || new PrismaClient();
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
-async function ensureAdminUser() {
-  const adminEmail = 'admin@reddit.com';
-  const adminPassword = 'admin';
-
-  const existing = await prisma.user.findUnique({ where: { email: adminEmail } });
-  if (!existing) {
-    const hashed = await bcrypt.hash(adminPassword, 10);
-    await prisma.user.create({
-      data: {
-        email: adminEmail,
-        name: 'Admin',
-        password: hashed,
-        role: 'ADMIN',
-      },
-    });
-  }
-}
-
-ensureAdminUser().catch((err) => {
-  console.error('[Auth] failed to ensure admin user', err);
-});
-
 declare module "next-auth" {
   interface Session {
     user: {

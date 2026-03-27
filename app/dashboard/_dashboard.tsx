@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { MessageCircle, Film, CheckCircle2, XCircle, Info, BookMarked, Flame } from 'lucide-react';
+import { MessageCircle, BookMarked, Flame } from 'lucide-react';
 import AppIcon from '@/components/AppIcon';
 import { useToast } from '@/components/ToastContext';
 import ChatPanel from '../../components/ChatPanel';
@@ -216,8 +216,7 @@ export default function DashboardPage({ avatar }: { avatar?: React.ReactNode }) 
             onClick={openNotepad}
           >
             <BookMarked size={13} /> Notepad
-          </button>
-        </div>
+          </button>        </div>
 
         {sidebarView === 'chat' && (
           <ChatPanel
@@ -226,7 +225,6 @@ export default function DashboardPage({ avatar }: { avatar?: React.ReactNode }) 
             nsfw={nsfw}
             onNsfwToggle={toggleNsfw}
             currentQuery={query}
-            reelCount={reels.length}
           />
         )}
         {sidebarView === 'notepad' && (
@@ -254,14 +252,12 @@ export default function DashboardPage({ avatar }: { avatar?: React.ReactNode }) 
         </button>
         <button id="tab-feed"
           className={`tab-btn${mobileTab === 'feed' ? ' is-active' : ''}`}
-          onClick={() => setMobileTab('feed')} aria-label="Reels"
-          style={{ position: 'relative' }}>
+          onClick={() => setMobileTab('feed')} aria-label="Reels">
           <AppIcon size={20} /><span>Reels</span>
         </button>
         <button id="tab-notes"
           className={`tab-btn${mobileTab === 'notes' ? ' is-active' : ''}`}
-          onClick={openNotepad} aria-label="Notepad"
-          style={{ position: 'relative' }}>
+          onClick={openNotepad} aria-label="Notepad">
           <BookMarked size={20} /><span>Notepad</span>
         </button>
       </nav>

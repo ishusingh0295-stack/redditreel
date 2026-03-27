@@ -20,6 +20,8 @@ export default function LoginModal({ open, onClose, callbackUrl = '/dashboard' }
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+  // Per-field errors for instant feedback
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -32,14 +34,46 @@ export default function LoginModal({ open, onClose, callbackUrl = '/dashboard' }
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  const reset = () => { setError(''); setMsg(''); };
+  const reset = () => { setError(''); setMsg(''); setFieldErrors({}); };
 
-  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  /* ── Client-side validation (mirrors server rules) ── */
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  const NAME_RE  = /^[a-zA-Z0-9 _\-\.]{2,32}$/;
+
+  function validateClient(formData: FormData): boolean {
+    const errs: Record<string, string> = {};
+
+    if (!isLogin) {
+      const name = (formData.get('name') as string)?.trim();
+      if (!name) errs.name = 'Display name is required.';
+      else if (!NAME_RE.test(name)) errs.name = '2–32 chars, letters/numbers/spaces/_ - . only.';
+    }
+
+    const email = (formData.get('email') as string)?.trim();
+    if (!email) errs.email = 'Email is required.';
+    else if (!EMAIL_RE.test(email)) errs.email = 'Enter a valid email address.';
+
+    const password = formData.get('password') as string;
+    if (!password) {
+      errs.password = 'Password is required.';
+    } else if (!isLogin) {
+      if (password.length < 8)       errs.password = 'At least 8 characters.';
+      else if (!/[A-Z]/.test(password)) errs.password = 'Include at least one uppercase letter.';
+      else if (!/[0-9]/.test(password)) errs.password = 'Include at least one number.';
+    }
+
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
+
+  const onSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setLoading(true);
     reset();
 
     const formData = new FormData(e.currentTarget);
+    if (!validateClient(formData)) return; // stop if client errors
+
+    setLoading(true);
 
     if (isLogin) {
       const res = await loginAction(formData);
@@ -172,22 +206,35 @@ export default function LoginModal({ open, onClose, callbackUrl = '/dashboard' }
               {/* Form */}
               <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {!isLogin && (
-                  <input
-                    name="name" type="text" placeholder="Display name"
-                    required disabled={loading}
-                    style={inputStyle}
-                  />
+                  <div>
+                    <input
+                      name="name" type="text" placeholder="Display name"
+                      required disabled={loading}
+                      onChange={() => setFieldErrors(p => ({ ...p, name: '' }))}
+                      style={{ ...inputStyle, borderColor: fieldErrors.name ? 'rgba(255,68,68,.5)' : undefined }}
+                    />
+                    {fieldErrors.name && <FieldError msg={fieldErrors.name} />}
+                  </div>
                 )}
-                <input
-                  name="email" type="email" placeholder="Email address"
-                  required disabled={loading}
-                  style={inputStyle}
-                />
-                <input
-                  name="password" type="password" placeholder="Password"
-                  required disabled={loading}
-                  style={inputStyle}
-                />
+                <div>
+                  <input
+                    name="email" type="email" placeholder="Email address"
+                    required disabled={loading}
+                    onChange={() => setFieldErrors(p => ({ ...p, email: '' }))}
+                    style={{ ...inputStyle, borderColor: fieldErrors.email ? 'rgba(255,68,68,.5)' : undefined }}
+                  />
+                  {fieldErrors.email && <FieldError msg={fieldErrors.email} />}
+                </div>
+                <div>
+                  <input
+                    name="password" type="password"
+                    placeholder={isLogin ? 'Password' : 'Password (8+ chars, 1 uppercase, 1 number)'}
+                    required disabled={loading}
+                    onChange={() => setFieldErrors(p => ({ ...p, password: '' }))}
+                    style={{ ...inputStyle, borderColor: fieldErrors.password ? 'rgba(255,68,68,.5)' : undefined }}
+                  />
+                  {fieldErrors.password && <FieldError msg={fieldErrors.password} />}
+                </div>
 
                 <button
                   type="submit" disabled={loading}
@@ -231,10 +278,21 @@ export default function LoginModal({ open, onClose, callbackUrl = '/dashboard' }
   );
 }
 
+/* ── Shared styles ── */
 const inputStyle: React.CSSProperties = {
   padding: '12px 14px', borderRadius: 10, fontSize: 14, width: '100%',
   background: 'rgba(255,255,255,0.05)',
   border: '1px solid rgba(255,255,255,0.1)',
   color: '#fff', outline: 'none',
   boxSizing: 'border-box',
+  transition: 'border-color .2s',
 };
+
+/* ── Inline field error ── */
+function FieldError({ msg }: { msg: string }) {
+  return (
+    <p style={{ fontSize: 11, color: '#ff6666', marginTop: 4, paddingLeft: 2 }}>
+      {msg}
+    </p>
+  );
+}

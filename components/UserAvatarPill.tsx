@@ -1,39 +1,72 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, LogOut } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { createAvatar } from '@dicebear/core';
-import { adventurer } from '@dicebear/collection';
+import { botttsNeutral, lorelei, adventurer, funEmoji, thumbs } from '@dicebear/collection';
 
-/* Generate a deterministic SVG data-URI from the user's email */
-function getDicebearSvg(seed: string): string {
-  const avatar = createAvatar(adventurer, {
-    seed,
-    backgroundColor: ['b6e3f4', 'c0aede', 'd1d4f9', 'ffd5dc', 'ffdfbf'],
-    backgroundType: ['gradientLinear'],
-  });
-  return avatar.toDataUri();
+/* ─────────────────────────────────────────────────────────────
+   Avatar Strategy — DiceBear
+   Each style is deterministic: same seed → same avatar always.
+   We pick the style itself based on the seed so every user gets
+   a different "look" (not just a different colour).
+───────────────────────────────────────────────────────────── */
+
+function hashSeed(seed: string): number {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return h;
 }
+
+const BG_COLORS = ['b6e3f4', 'c0aede', 'd1d4f9', 'ffd5dc', 'ffdfbf', 'f0e6ff', 'e0f7fa'];
+
+function generateAvatar(seed: string): string {
+  const h = hashSeed(seed);
+  const styleIndex = h % 5;
+  const opts = { seed, size: 64, backgroundColor: BG_COLORS };
+
+  // Each style called individually to satisfy TypeScript's strict generics
+  const svg = (() => {
+    switch (styleIndex) {
+      case 0: return createAvatar(botttsNeutral, opts).toString();
+      case 1: return createAvatar(lorelei,       opts).toString();
+      case 2: return createAvatar(adventurer,    opts).toString();
+      case 3: return createAvatar(funEmoji,      opts).toString();
+      default: return createAvatar(thumbs,       opts).toString();
+    }
+  })();
+
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Component
+───────────────────────────────────────────────────────────── */
 
 interface Props {
-  name: string;
-  email: string;
-  image?: string | null;
-  role: string;
+  name:    string;
+  email:   string;
+  image?:  string | null;
+  role:    string;
+  userId?: string;
 }
 
-export default function UserAvatarPill({ name, email, image, role }: Props) {
-  const [open, setOpen] = useState(false);
+export default function UserAvatarPill({ name, email, image, role, userId }: Props) {
+  const [open, setOpen]           = useState(false);
   const [customImgErr, setCustomImgErr] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const roleLabel = role === 'ADMIN' ? 'Admin' : 'Member';
-  const seed = email || name || 'user';
-  const dicebearSrc = getDicebearSvg(seed);
-  // Prefer custom image; fall back to DiceBear
-  const avatarSrc = (image && !customImgErr) ? image : dicebearSrc;
+  // Seed: prefer userId (guaranteed unique), fall back to email
+  const seed = userId || email || name || 'user';
 
+  // Memoised so the SVG isn't regenerated on every render
+  const generatedSrc = useMemo(() => generateAvatar(seed), [seed]);
+  const avatarSrc    = image && !customImgErr ? image : generatedSrc;
+
+  const roleLabel = role === 'ADMIN' ? 'Admin' : 'Member';
+
+  // Close dropdown when clicking outside
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
@@ -45,7 +78,7 @@ export default function UserAvatarPill({ name, email, image, role }: Props) {
   return (
     <div ref={ref} style={{ position: 'fixed', top: 12, right: 16, zIndex: 400 }}>
 
-      {/* ── Pill ── */}
+      {/* ── Pill trigger ── */}
       <button
         onClick={() => setOpen(o => !o)}
         style={{
@@ -68,7 +101,7 @@ export default function UserAvatarPill({ name, email, image, role }: Props) {
         <div style={{
           width: 26, height: 26, borderRadius: '50%',
           overflow: 'hidden', flexShrink: 0,
-          background: '#111',
+          background: '#1a1a2e',
           border: '1.5px solid rgba(220,20,60,.3)',
         }}>
           <img
@@ -79,14 +112,8 @@ export default function UserAvatarPill({ name, email, image, role }: Props) {
           />
         </div>
 
-        {/* Separator */}
-        <div style={{
-          width: 1, height: 20,
-          background: 'rgba(255,255,255,.1)',
-          margin: '0 9px', flexShrink: 0,
-        }} />
+        <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,.1)', margin: '0 9px', flexShrink: 0 }} />
 
-        {/* Name + role */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1, marginRight: 7 }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: '#f5f5f5', lineHeight: 1.2, whiteSpace: 'nowrap' }}>
             {name || email}
@@ -96,7 +123,6 @@ export default function UserAvatarPill({ name, email, image, role }: Props) {
           </span>
         </div>
 
-        {/* Chevron */}
         <ChevronDown
           size={12}
           color="rgba(255,255,255,.45)"
@@ -118,14 +144,14 @@ export default function UserAvatarPill({ name, email, image, role }: Props) {
           boxShadow: '0 16px 48px rgba(0,0,0,.8)',
           animation: 'fadeUp .18s ease both',
         }}>
-          {/* Header */}
+          {/* User info header */}
           <div style={{
             padding: '10px 12px',
             borderBottom: '1px solid rgba(255,255,255,.06)',
             marginBottom: 4,
             display: 'flex', alignItems: 'center', gap: 10,
           }}>
-            <div style={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: '#111' }}>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: '#1a1a2e' }}>
               <img src={avatarSrc} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
             <div>
@@ -145,14 +171,8 @@ export default function UserAvatarPill({ name, email, image, role }: Props) {
               cursor: 'pointer', textAlign: 'left',
               transition: 'background .15s, color .15s',
             }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = 'rgba(255,45,85,.1)';
-              e.currentTarget.style.color = 'var(--accent)';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = 'none';
-              e.currentTarget.style.color = 'rgba(255,255,255,.55)';
-            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,45,85,.1)'; e.currentTarget.style.color = 'var(--accent)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'rgba(255,255,255,.55)'; }}
           >
             <LogOut size={14} /> Sign Out
           </button>

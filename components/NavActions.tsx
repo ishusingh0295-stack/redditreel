@@ -22,6 +22,7 @@ export default async function NavActions({ onLoginClick }: { onLoginClick?: stri
           email={user.email ?? ''}
           image={user.image ?? null}
           role={(user as any).role ?? 'USER'}
+          userId={user.id}
         />
       </div>
     );

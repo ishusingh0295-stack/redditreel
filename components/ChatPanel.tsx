@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import AppIcon from '@/components/AppIcon';
 import {
-  Send, Search, Clapperboard, Flame, TrendingUp, Clock,
+  Search, Clapperboard, Flame, TrendingUp, Clock,
   Cat, Gamepad2, Car, Code2, Leaf, UtensilsCrossed, Rocket,
   Music, Dumbbell, ChevronRight, Sparkles, Wifi, Film,
 } from 'lucide-react';
@@ -21,7 +21,6 @@ interface Props {
   nsfw:         boolean;
   onNsfwToggle: () => void;
   currentQuery: string;
-  reelCount:    number;
 }
 
 const SUGGESTIONS = [
@@ -55,7 +54,7 @@ function md(text: string) {
     .replace(/\n/g, '<br/>');
 }
 
-export default function ChatPanel({ onSearch, loading, nsfw, onNsfwToggle, currentQuery, reelCount }: Props) {
+export default function ChatPanel({ onSearch, loading, nsfw, onNsfwToggle, currentQuery }: Props) {
   const WELCOME_NORMAL = '**Welcome to Reddit Reel AI!**\n\nTell me what you want to watch and I\'ll curate a personalised reel feed from Reddit.\n\nTry: *"find lion videos"*, *"funny fails"*, *"car crashes"*, or *"space exploration"*';
   const WELCOME_NSFW   = '**Welcome to Adult Mode** 🔞\n\nYou\'re now in unrestricted mode. I\'ll surface the top-rated 18+ content from Reddit — no filter, no limits.\n\nTry: *"hot trending nsfw"*, *"top amateur videos"*, *"wild moments"*, or *"thirst traps"*';
 

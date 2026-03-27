@@ -14,31 +14,15 @@ export default auth((req) => {
     return NextResponse.redirect(url);
   }
 
-  // Add security headers
+  // Add security headers to every response
   const response = NextResponse.next();
-  
-  // Prevent clickjacking
   response.headers.set('X-Frame-Options', 'DENY');
-  
-  // Prevent MIME type sniffing
   response.headers.set('X-Content-Type-Options', 'nosniff');
-  
-  // Enable XSS protection
   response.headers.set('X-XSS-Protection', '1; mode=block');
-  
-  // Referrer policy
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  
-  // Content Security Policy - prevent inline scripts and external resources
-  response.headers.set(
-    'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self' https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none';"
-  );
-  
-  // Permissions policy
   response.headers.set(
     'Permissions-Policy',
-    'geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()'
+    'geolocation=(), microphone=(), camera=(), payment=(), usb=()'
   );
 
   return response;

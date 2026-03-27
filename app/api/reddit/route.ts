@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma, auth } from '@/auth';
 
-/* ═══════════════════════════════════════════════════════
-   AUTH GUARD — Prevent unauthorized API access
-═══════════════════════════════════════════════════════ */
 async function requireAuth(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json(
-      { success: false, error: 'Unauthorized' },
-      { status: 401 }
-    );
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
   return null;
 }
@@ -238,12 +232,12 @@ async function fetchSub(sub: string, sort: string, limit: number, after?: string
 ═══════════════════════════════════════════════════════ */
 function extractMedia(post: RedditChild['data']): { videoUrl: string | null; imageUrl: string | null; isVideo: boolean } {
   const rv = post.media?.reddit_video || post.secure_media?.reddit_video;
-  if (rv) return { videoUrl: rv.hls_url?.replace(/&amp;/g, '&') ?? rv.fallback_url?.replace(/&amp;/g, '&') ?? null, imageUrl: post.thumbnail?.startsWith('http') ? post.thumbnail : null, isVideo: true };
+  if (rv) return { videoUrl: (rv.hls_url ?? rv.fallback_url)?.replace(/&amp;/g, '&') ?? null, imageUrl: post.thumbnail?.startsWith('http') ? post.thumbnail : null, isVideo: true };
 
   if (post.crosspost_parent_list?.length) {
     const cp = post.crosspost_parent_list[0];
     const crv = cp.media?.reddit_video || cp.secure_media?.reddit_video;
-    if (crv) return { videoUrl: crv.hls_url?.replace(/&amp;/g, '&') ?? crv.fallback_url?.replace(/&amp;/g, '&') ?? null, imageUrl: null, isVideo: true };
+    if (crv) return { videoUrl: (crv.hls_url ?? crv.fallback_url)?.replace(/&amp;/g, '&') ?? null, imageUrl: null, isVideo: true };
   }
 
   const pv = post.preview?.reddit_video_preview;
@@ -276,7 +270,6 @@ function hasMedia(post: RedditChild['data']): boolean {
    MAIN ROUTE
 ═══════════════════════════════════════════════════════ */
 export async function GET(request: NextRequest) {
-  // Require authentication
   const authError = await requireAuth(request);
   if (authError) return authError;
 
