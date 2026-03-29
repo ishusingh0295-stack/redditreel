@@ -31,10 +31,10 @@ export default async function NavActions({ onLoginClick }: { onLoginClick?: stri
   // Unauthenticated — render Sign In + Get Started as a form so the client
   // page can wire up the modal via a custom event on click.
   return (
-    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+    <div className="nav-actions-container" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
       <button
         data-login-trigger
-        className="nav-link"
+        className="nav-link-btn"
         style={{
           padding: '9px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600,
           color: 'rgba(255,255,255,.55)',
@@ -47,7 +47,7 @@ export default async function NavActions({ onLoginClick }: { onLoginClick?: stri
       </button>
       <button
         data-login-trigger
-        className="cta-btn"
+        className="cta-btn-nav"
         style={{
           padding: '9px 20px', borderRadius: 10, fontSize: 13, fontWeight: 800,
           background: '#ff2d55', color: '#fff',

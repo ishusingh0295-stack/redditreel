@@ -347,6 +347,15 @@ export default function LandingPage({
     }
   }, [searchParams]);
 
+  // Responsive check for dynamic layout adjustments
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 1024);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
   /* Typing animation for badge */
   const badgeText = "Just launched — be among the first";
   const [typed, setTyped] = useState("");
@@ -391,8 +400,8 @@ export default function LandingPage({
           transform:translateY(-4px)!important;
           box-shadow:0 16px 40px rgba(255,45,85,.15)!important;
         }
-        .nav-link:hover{color:#fff!important}
-        .cta-btn:hover{transform:translateY(-2px)!important;box-shadow:0 12px 32px rgba(255,45,85,.5)!important}
+        .nav-link:hover, .nav-link-btn:hover{color:#fff!important}
+        .cta-btn:hover, .cta-btn-nav:hover{transform:translateY(-2px)!important;box-shadow:0 12px 32px rgba(255,45,85,.5)!important}
       `}</style>
 
       <main
@@ -604,6 +613,7 @@ export default function LandingPage({
               >
                 Reddit{" "}
                 <span
+                  className="hero-title-part"
                   style={{
                     color: "#ff2d55",
                     textShadow: "0 0 40px rgba(255,45,85,.5)",
@@ -709,15 +719,15 @@ export default function LandingPage({
             style={{
               position: "relative",
               zIndex: 5,
-              flex: "0 0 300px",
-              width: 300,
-              height: 420,
+              flex: isMobile ? "none" : "0 0 300px",
+              width: isMobile ? "100%" : 300,
+              height: isMobile ? 360 : 420,
               alignSelf: "center",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               pointerEvents: "none",
-              transform: "translateX(-120px)",
+              transform: isMobile ? "none" : "translateX(-120px)",
             }}
           >
             {/* Card 3 — back (most rotated, smallest, lowest z) */}
@@ -726,14 +736,14 @@ export default function LandingPage({
               rotate={-18}
               translateX="0%"
               translateY="0%"
-              width={260}
-              height={400}
+              width={isMobile ? 180 : 260}
+              height={isMobile ? 280 : 400}
               zIndex={1}
               scale={0.88}
-              imageSrc="https://i.redd.it/9x8gqk2wq9y91.jpg"
-              subreddit="ArchitecturePorn"
-              title="Gothic cathedral in the mist"
-              author="stone_and_shadow"
+              imageSrc="https://i.redd.it/22il2bd2puyc1.png"
+              subreddit="Animewallpaper"
+              title="Lize Helesta [Nijisanji]"
+              author="V-Artiste"
             />
 
             {/* Card 2 — middle */}
@@ -742,14 +752,14 @@ export default function LandingPage({
               rotate={10}
               translateX="0%"
               translateY="0%"
-              width={260}
-              height={400}
+              width={isMobile ? 180 : 260}
+              height={isMobile ? 280 : 400}
               zIndex={2}
               scale={0.94}
-              imageSrc="https://www.reddit.com/r/ClassroomOfTheElite/comments/1nii5cc/is_ichinose_canonically_the_most_beautiful_girl/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content"
+              imageSrc="https://i.redd.it/p3jyhk47iurg1.png"
               subreddit="PrettyGirls"
-              title="Soft natural light portrait"
-              author="lens_poet"
+              title="Olivia King — Natural Light"
+              author="PortraitPro"
             />
 
             {/* Card 1 — front (least rotated, full size, highest z) */}
@@ -758,8 +768,8 @@ export default function LandingPage({
               rotate={-3}
               translateX="0%"
               translateY="0%"
-              width={260}
-              height={400}
+              width={isMobile ? 180 : 260}
+              height={isMobile ? 280 : 400}
               zIndex={3}
               scale={1}
               videoSrc="https://v.redd.it/tczku5gpr8d61/DASH_720.mp4?source=fallback"
@@ -881,13 +891,13 @@ export default function LandingPage({
         </div>
 
         {/* ══ FEATURES SECTION ══ */}
-        <FeaturesSection />
+        <FeaturesSection isMobile={isMobile} />
 
         {/* ══ CTA BANNER ══ */}
-        <CtaBanner onLogin={openLogin} />
+        <CtaBanner onLogin={openLogin} isMobile={isMobile} />
 
         {/* ══ BRAND FOOTER ══ */}
-        <BrandFooter onLogin={openLogin} />
+        <BrandFooter onLogin={openLogin} isMobile={isMobile} />
       </main>
     </>
   );
@@ -896,7 +906,7 @@ export default function LandingPage({
 /* ══════════════════════════════════════
    FEATURES SECTION (scroll-animated)
 ══════════════════════════════════════ */
-function FeaturesSection() {
+function FeaturesSection({ isMobile }: { isMobile: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-80px" });
 
@@ -905,7 +915,7 @@ function FeaturesSection() {
       ref={ref}
       className="features-section"
       style={{
-        padding: "clamp(80px, 10vw, 140px) clamp(24px, 6vw, 100px)",
+        padding: isMobile ? "60px 20px" : "clamp(80px, 10vw, 140px) clamp(24px, 6vw, 100px)",
         maxWidth: 1200,
         margin: "0 auto",
       }}
@@ -1018,7 +1028,7 @@ function FeaturesSection() {
 /* ══════════════════════════════════════
    CTA BANNER
 ══════════════════════════════════════ */
-function CtaBanner({ onLogin }: { onLogin: () => void }) {
+function CtaBanner({ onLogin, isMobile }: { onLogin: () => void; isMobile: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-60px" });
   return (
@@ -1034,12 +1044,13 @@ function CtaBanner({ onLogin }: { onLogin: () => void }) {
         style={{
           background: "#ff2d55",
           borderRadius: 24,
-          padding: "clamp(40px, 6vw, 72px) clamp(28px, 5vw, 72px)",
+          padding: isMobile ? "40px 24px" : "clamp(40px, 6vw, 72px) clamp(28px, 5vw, 72px)",
           display: "flex",
           flexWrap: "wrap",
-          gap: 24,
+          gap: isMobile ? 32 : 24,
           alignItems: "center",
-          justifyContent: "space-between",
+          justifyContent: isMobile ? "center" : "space-between",
+          textAlign: isMobile ? "center" : "left",
           position: "relative",
           overflow: "hidden",
         }}
@@ -1115,7 +1126,7 @@ function CtaBanner({ onLogin }: { onLogin: () => void }) {
 /* ══════════════════════════════════════
    BRAND FOOTER WITH GLITCH
 ══════════════════════════════════════ */
-function BrandFooter({ onLogin }: { onLogin: () => void }) {
+function BrandFooter({ onLogin, isMobile }: { onLogin: () => void; isMobile: boolean }) {
   return (
     <footer
       style={{
@@ -1129,11 +1140,12 @@ function BrandFooter({ onLogin }: { onLogin: () => void }) {
         className="footer-top"
         style={{
           display: "flex",
-          justifyContent: "space-between",
+          justifyContent: isMobile ? "center" : "space-between",
           alignItems: "center",
           flexWrap: "wrap",
-          gap: 16,
-          padding: "clamp(24px, 4vw, 40px) clamp(24px, 6vw, 100px)",
+          flexDirection: isMobile ? "column" : "row",
+          gap: 24,
+          padding: isMobile ? "40px 20px" : "clamp(24px, 4vw, 40px) clamp(24px, 6vw, 100px)",
           borderBottom: "1px solid rgba(255,255,255,.06)",
         }}
       >

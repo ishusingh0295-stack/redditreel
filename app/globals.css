@@ -509,7 +509,85 @@ body {
 }
 
 /* ══════════════════════════════════════════
+   LANDING PAGE RESPONSIVITY (extra details for smartphones)
+   We use !important where needed to override the heavy inline styles 
+   found in _landing.tsx
+══════════════════════════════════════════ */
+
+@media (max-width: 1024px) {
+  .hero-section {
+    flex-direction: column !important;
+    text-align: center;
+    padding-top: 120px !important;
+    gap: 60px !important;
+  }
+  .hero-content {
+    max-width: 100% !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .hero-ctas {
+    justify-content: center;
+  }
+  .hero-cards {
+    transform: translateX(0) !important;
+    flex: none !important;
+    width: 100% !important;
+    height: 380px !important;
+  }
+  .footer-top {
+    justify-content: center !important;
+    text-align: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .landing-nav {
+    padding: 0 16px !important;
+  }
+  .landing-nav-logo-text {
+    display: none; /* Hide logo text on very small screens to save space */
+  }
+  .nav-actions-container {
+    gap: 6px !important;
+  }
+  .nav-link-btn, .cta-btn-nav {
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+  }
+  .hero-section h1, .hero-section .hero-title-part {
+    letter-spacing: -1.5px !important;
+  }
+  .hero-cards {
+    height: 320px !important;
+    margin-top: -20px;
+  }
+  .features-section {
+    padding: 60px 20px !important;
+  }
+  .cta-banner-inner {
+    padding: 40px 24px !important;
+    text-align: center;
+    justify-content: center !important;
+  }
+  .cta-banner-inner h2 {
+    font-size: 32px !important;
+  }
+  .footer-links {
+    gap: 12px !important;
+    justify-content: center;
+    width: 100%;
+  }
+  .footer-brand-text {
+    padding-left: 20px !important;
+    letter-spacing: -3px !important;
+  }
+}
+
+/* ══════════════════════════════════════════
    TOAST
+   (Restored original toast styles)
 ══════════════════════════════════════════ */
 .toast-wrap {
   position: fixed;
