@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Users, Film, StickyNote, Activity, Shield, TrendingUp,
   Search, Trash2, UserCheck, UserX, Eye, X, BarChart2,
@@ -52,30 +52,81 @@ function Stat({ label, value, icon, accent }: StatCard) {
   );
 }
 
-/* ── Mini bar chart (pure CSS) ── */
-function BarChart({ data, label }: { data: Array<{ date: string; count: number }>; label: string }) {
-  const max = Math.max(...data.map(d => d.count), 1);
-  const last14 = data.slice(-14);
+/* ── NEW: SVG Line Chart ── */
+function LineChart({ data, label }: { data: Array<{ date: string; count: number }>; label: string }) {
+  const width = 500;
+  const height = 180;
+  const padding = { top: 20, right: 20, bottom: 25, left: 35 };
+  const innerWidth = width - padding.left - padding.right;
+  const innerHeight = height - padding.top - padding.bottom;
+
+  if (!data.length) return <div style={{ color: 'var(--text-3)', textAlign: 'center', padding: 40 }}>No data</div>;
+
+  const maxCount = Math.max(...data.map(d => d.count), 1);
+  const minCount = Math.min(...data.map(d => d.count), 0);
+  const yScale = (count: number) => innerHeight - ((count - minCount) / (maxCount - minCount || 1)) * innerHeight;
+
+  const points = data.map((d, i) => {
+    const x = (i / (data.length - 1)) * innerWidth;
+    const y = yScale(d.count);
+    return `${x},${y}`;
+  }).join(' ');
+
+  // Show first, middle, and last date on x‑axis
+  const xTicks = [0, Math.floor((data.length - 1) / 2), data.length - 1].map(idx => ({
+    label: data[idx].date.slice(5), // "MM-DD"
+    x: (idx / (data.length - 1)) * innerWidth,
+  }));
+
+  // Y‑axis ticks (min, middle, max)
+  const yTicks = [minCount, (minCount + maxCount) / 2, maxCount].map(val => ({
+    value: Math.round(val),
+    y: yScale(val),
+  }));
+
   return (
     <div>
       <p style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 700, marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.6px' }}>{label}</p>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 80 }}>
-        {last14.map(d => (
-          <div key={d.date} title={`${d.date}: ${d.count}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-            <div style={{
-              width: '100%', borderRadius: 3,
-              background: 'var(--accent)',
-              height: `${Math.max((d.count / max) * 72, 4)}px`,
-              opacity: 0.85,
-              transition: 'height .3s',
-            }} />
-          </div>
+      <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" style={{ overflow: 'visible' }}>
+        {/* Grid lines (horizontal) */}
+        {yTicks.map(({ y, value }) => (
+          <g key={value}>
+            <line x1={padding.left} y1={y + padding.top} x2={width - padding.right} y2={y + padding.top} stroke="var(--border)" strokeWidth="1" strokeDasharray="3,3" />
+            <text x={padding.left - 6} y={y + padding.top + 3} fill="var(--text-3)" fontSize={10} textAnchor="end">{value}</text>
+          </g>
         ))}
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-        <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{last14[0]?.date?.slice(5)}</span>
-        <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{last14[last14.length - 1]?.date?.slice(5)}</span>
-      </div>
+
+        {/* Axes */}
+        <line x1={padding.left} y1={padding.top} x2={padding.left} y2={height - padding.bottom} stroke="var(--border)" strokeWidth="1" />
+        <line x1={padding.left} y1={height - padding.bottom} x2={width - padding.right} y2={height - padding.bottom} stroke="var(--border)" strokeWidth="1" />
+
+        {/* Line */}
+        <polyline points={points} fill="none" stroke="var(--accent)" strokeWidth="2" transform={`translate(${padding.left}, ${padding.top})`} />
+
+        {/* Data points (circles) */}
+        {data.map((d, i) => {
+          const x = (i / (data.length - 1)) * innerWidth;
+          const y = yScale(d.count);
+          return (
+            <circle
+              key={d.date}
+              cx={x + padding.left}
+              cy={y + padding.top}
+              r="3"
+              fill="var(--accent)"
+              stroke="var(--bg-surface)"
+              strokeWidth="1.5"
+            >
+              <title>{`${d.date}: ${d.count} users`}</title>
+            </circle>
+          );
+        })}
+
+        {/* X‑axis ticks */}
+        {xTicks.map(({ label, x }) => (
+          <text key={label} x={x + padding.left} y={height - padding.bottom + 16} fill="var(--text-3)" fontSize={10} textAnchor="middle">{label}</text>
+        ))}
+      </svg>
     </div>
   );
 }
@@ -86,9 +137,9 @@ function UserModal({ userId, onClose }: { userId: string; onClose: () => void })
   const [tab, setTab] = useState<'reels' | 'notes' | 'activity'>('reels');
   const [loading, setLoading] = useState(true);
 
-  useState(() => {
+  useEffect(() => {
     getUserDetail(userId).then(d => { setData(d); setLoading(false); });
-  });
+  }, [userId]);
 
   return (
     <div style={{
@@ -329,7 +380,7 @@ function AdminReelViewer() {
             <Send size={13} /> Search
           </button>
 
-                    {/* NSFW toggle */}
+          {/* NSFW toggle */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '0 12px', height: 38, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-elevated)', flexShrink: 0 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)' }}>NSFW</span>
             <button
@@ -408,7 +459,7 @@ export default function AdminDashboardClient({ stats, view }: { stats: Stats; vi
           {/* Charts row */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 28 }}>
             <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 14, padding: 20 }}>
-              <BarChart data={stats.userGrowth} label="User Growth (last 14 days)" />
+              <LineChart data={stats.userGrowth} label="User Growth (last 14 days)" />
             </div>
             <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 14, padding: 20 }}>
               <p style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 700, marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.6px' }}>Top Searches</p>
@@ -531,7 +582,7 @@ export default function AdminDashboardClient({ stats, view }: { stats: Stats; vi
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
             <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 14, padding: 24 }}>
-              <BarChart data={stats.userGrowth} label="User Registrations (90 days)" />
+              <LineChart data={stats.userGrowth} label="User Registrations (last 14 days)" />
             </div>
             <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 14, padding: 24 }}>
               <p style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 700, marginBottom: 16, textTransform: 'uppercase', letterSpacing: '0.6px' }}>Content Distribution</p>

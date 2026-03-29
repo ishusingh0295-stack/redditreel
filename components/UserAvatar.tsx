@@ -1,5 +1,5 @@
-import { auth } from '@/auth';
-import UserAvatarPill from './UserAvatarPill';
+import { auth } from "@/auth";
+import UserAvatarPill from "./UserAvatarPill";
 
 export default async function UserAvatar() {
   const session = await auth();
@@ -8,10 +8,10 @@ export default async function UserAvatar() {
 
   return (
     <UserAvatarPill
-      name={user.name ?? ''}
-      email={user.email ?? ''}
+      name={user.name ?? ""}
+      email={user.email ?? ""}
       image={user.image ?? null}
-      role={(user as any).role ?? 'USER'}
+      role={(user as any).role ?? "USER"}
       userId={user.id}
     />
   );
