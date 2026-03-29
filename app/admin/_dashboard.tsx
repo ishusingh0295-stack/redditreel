@@ -67,21 +67,26 @@ function LineChart({ data, label }: { data: Array<{ date: string; count: number 
   const yScale = (count: number) => innerHeight - ((count - minCount) / (maxCount - minCount || 1)) * innerHeight;
 
   const points = data.map((d, i) => {
-    const x = (i / (data.length - 1)) * innerWidth;
+    const x = data.length > 1 ? (i / (data.length - 1)) * innerWidth : innerWidth / 2;
     const y = yScale(d.count);
     return `${x},${y}`;
   }).join(' ');
 
-  // Show first, middle, and last date on x‑axis
-  const xTicks = [0, Math.floor((data.length - 1) / 2), data.length - 1].map(idx => ({
+  // Show unique ticks from first, middle, and last date on x‑axis
+  const indices = data.length > 1
+    ? Array.from(new Set([0, Math.floor((data.length - 1) / 2), data.length - 1]))
+    : [0];
+
+  const xTicks = indices.map(idx => ({
     label: data[idx].date.slice(5), // "MM-DD"
-    x: (idx / (data.length - 1)) * innerWidth,
+    x: data.length > 1 ? (idx / (data.length - 1)) * innerWidth : innerWidth / 2,
   }));
 
   // Y‑axis ticks (min, middle, max)
-  const yTicks = [minCount, (minCount + maxCount) / 2, maxCount].map(val => ({
+  const yTicks = [minCount, (minCount + maxCount) / 2, maxCount].map((val, i) => ({
     value: Math.round(val),
     y: yScale(val),
+    id: i, // stable key
   }));
 
   return (
@@ -89,8 +94,8 @@ function LineChart({ data, label }: { data: Array<{ date: string; count: number 
       <p style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 700, marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.6px' }}>{label}</p>
       <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" style={{ overflow: 'visible' }}>
         {/* Grid lines (horizontal) */}
-        {yTicks.map(({ y, value }) => (
-          <g key={value}>
+        {yTicks.map(({ y, value, id }) => (
+          <g key={id}>
             <line x1={padding.left} y1={y + padding.top} x2={width - padding.right} y2={y + padding.top} stroke="var(--border)" strokeWidth="1" strokeDasharray="3,3" />
             <text x={padding.left - 6} y={y + padding.top + 3} fill="var(--text-3)" fontSize={10} textAnchor="end">{value}</text>
           </g>
@@ -105,11 +110,11 @@ function LineChart({ data, label }: { data: Array<{ date: string; count: number 
 
         {/* Data points (circles) */}
         {data.map((d, i) => {
-          const x = (i / (data.length - 1)) * innerWidth;
+          const x = data.length > 1 ? (i / (data.length - 1)) * innerWidth : innerWidth / 2;
           const y = yScale(d.count);
           return (
             <circle
-              key={d.date}
+              key={`${d.date}-${i}`}
               cx={x + padding.left}
               cy={y + padding.top}
               r="3"
@@ -123,8 +128,8 @@ function LineChart({ data, label }: { data: Array<{ date: string; count: number 
         })}
 
         {/* X‑axis ticks */}
-        {xTicks.map(({ label, x }) => (
-          <text key={label} x={x + padding.left} y={height - padding.bottom + 16} fill="var(--text-3)" fontSize={10} textAnchor="middle">{label}</text>
+        {xTicks.map((tick, i) => (
+          <text key={`${tick.label}-${i}`} x={tick.x + padding.left} y={height - padding.bottom + 16} fill="var(--text-3)" fontSize={10} textAnchor="middle">{tick.label}</text>
         ))}
       </svg>
     </div>
