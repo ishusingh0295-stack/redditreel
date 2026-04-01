@@ -42,7 +42,7 @@ export function disableConsole() {
   });
 
   // Prevent devtools detection workarounds
-  const devtools = { open: false, orientation: null };
+  const devtools: { open: boolean; orientation: 'vertical' | 'horizontal' | null } = { open: false, orientation: null };
   const threshold = 160;
 
   setInterval(() => {
