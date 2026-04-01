@@ -18,12 +18,8 @@ function validateRegistration(email: string, password: string, name: string) {
     return 'Please enter a valid email address.';
 
   if (!password)         return 'Password is required.';
-  if (password.length < 8)
-    return 'Password must be at least 8 characters.';
-  if (!/[A-Z]/.test(password))
-    return 'Password must contain at least one uppercase letter.';
-  if (!/[0-9]/.test(password))
-    return 'Password must contain at least one number.';
+  if (password.length < 6)
+    return 'Password must be at least 6 characters.';
 
   return null; // valid
 }
@@ -68,7 +64,9 @@ export async function registerAction(formData: FormData) {
 
 export async function loginAction(formData: FormData) {
   try {
-    await signIn('credentials', formData);
+    const email = (formData.get('email') as string)?.trim().toLowerCase();
+    const password = formData.get('password') as string;
+    await signIn('credentials', { email, password, redirectTo: '/dashboard' });
   } catch (error) {
     if (error instanceof AuthError) {
       if (error.type === 'CredentialsSignin') return { error: 'Invalid email or password.' };

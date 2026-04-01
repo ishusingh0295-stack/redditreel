@@ -63,9 +63,7 @@ export default function LoginModal({ open, onClose, callbackUrl = '/dashboard' }
     if (!password) {
       errs.password = 'Password is required.';
     } else if (!isLogin) {
-      if (password.length < 8)       errs.password = 'At least 8 characters.';
-      else if (!/[A-Z]/.test(password)) errs.password = 'Include at least one uppercase letter.';
-      else if (!/[0-9]/.test(password)) errs.password = 'Include at least one number.';
+      if (password.length < 6) errs.password = 'At least 6 characters.';
     }
 
     setFieldErrors(errs);
@@ -240,7 +238,7 @@ export default function LoginModal({ open, onClose, callbackUrl = '/dashboard' }
                 <div style={{ position: 'relative' }}>
                   <input
                     name="password" type={showPassword ? 'text' : 'password'}
-                    placeholder={isLogin ? 'Password' : 'Password (8+ chars, 1 uppercase, 1 number)'}
+                    placeholder={isLogin ? 'Password' : 'Password (6+ characters)'}
                     required disabled={loading}
                     onChange={() => setFieldErrors(p => ({ ...p, password: '' }))}
                     style={{ 
