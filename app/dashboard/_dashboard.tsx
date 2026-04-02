@@ -17,13 +17,10 @@ interface Toast   { id: string; msg: string; type: ToastType; }
 type MobileTab   = 'chat' | 'feed' | 'notes';
 type SidebarView = 'chat' | 'notepad';
 
-/* Cursor-based pagination state */
+/* Feed engine pagination state */
 interface Pagination {
-  subs:      string;    // comma-separated community pool snapshot
-  subIdx:    number;    // current position in pool
-  after:     string | null;
-  sortCycle: number;
-  seenIds:   Set<string>;
+  subs:    string;         // comma-separated pool snapshot
+  seenIds: Set<string>;    // all IDs shown so far (dedup)
 }
 
 export default function DashboardPage({ avatar }: { avatar?: React.ReactNode }) {
@@ -41,7 +38,7 @@ export default function DashboardPage({ avatar }: { avatar?: React.ReactNode }) 
 
   const queryRef = useRef('');
   const nsfwRef  = useRef(false);
-  const pagRef   = useRef<Pagination>({ subs: '', subIdx: 0, after: null, sortCycle: 0, seenIds: new Set() });
+  const pagRef   = useRef<Pagination>({ subs: '', seenIds: new Set() });
   const loadingRef = useRef(false);
   const lastFetchId = useRef(0);
 
@@ -60,11 +57,10 @@ export default function DashboardPage({ avatar }: { avatar?: React.ReactNode }) 
     retryCount: number = 0,
     overrideFetchId?: number
   ) => {
-    // Only block if it's an 'append' call (Load More) and already loading
     if (loadingRef.current && retryCount === 0 && append) return;
 
     const currentId = overrideFetchId ?? ++lastFetchId.current;
-    
+
     if (retryCount === 0) {
       loadingRef.current = true;
       setLoading(true);
@@ -72,42 +68,36 @@ export default function DashboardPage({ avatar }: { avatar?: React.ReactNode }) 
 
     try {
       const params = new URLSearchParams({
-        query:     q,
-        nsfw:      String(isNsfw),
-        limit:     '12',
-        subIdx:    String(pag.subIdx),
-        sortCycle: String(pag.sortCycle),
-        ...(pag.subs  ? { subs:  pag.subs }  : {}),
-        ...(pag.after ? { after: pag.after }  : {}),
-        ...(pag.seenIds.size ? { seenIds: [...pag.seenIds].slice(-200).join(',') } : {}),
+        query:  q,
+        nsfw:   String(isNsfw),
+        limit:  '25',
+        ...(pag.subs    ? { subs:    pag.subs }                                    : {}),
+        ...(pag.seenIds.size ? { seenIds: [...pag.seenIds].slice(-300).join(',') } : {}),
       });
 
       const res  = await fetch(`/api/reddit?${params}`);
       const data = await res.json();
 
-      // Race condition check: ignore if a newer search has started
       if (currentId !== lastFetchId.current) return;
 
       if (data.success && data.reels?.length > 0) {
-          const newReels: ReelPost[] = data.reels;
-          const p = data.pagination;
-          const updatedSeen = new Set(pag.seenIds);
-          newReels.forEach(r => updatedSeen.add(r.id));
-          pagRef.current = {
-            subs:      p.subs      ?? pag.subs,
-            subIdx:    p.subIdx    ?? 0,
-            after:     p.after     ?? null,
-            sortCycle: p.sortCycle ?? 0,
-            seenIds:   updatedSeen,
-          };
-          setReels(prev => append ? [...prev, ...newReels] : newReels);
-          if (!append) {
-            setMobileTab('feed');
-          }
-        } else if (data.success && retryCount < 6 && data.pagination) {
-        const p = data.pagination;
-        const nextPag = { ...pag, subs: p.subs ?? pag.subs, subIdx: p.subIdx ?? 0, after: p.after ?? null, sortCycle: p.sortCycle ?? 0 };
-        await fetchReels(q, isNsfw, nextPag, append, retryCount + 1, currentId);
+        const newReels: ReelPost[] = data.reels;
+        const updatedSeen = new Set(pag.seenIds);
+        newReels.forEach((r: ReelPost) => updatedSeen.add(r.id));
+        // Also absorb any extra preloaded IDs returned by the server
+        if (data.pagination?.newSeenIds) {
+          data.pagination.newSeenIds.split(',').filter(Boolean).forEach((id: string) => updatedSeen.add(id));
+        }
+        pagRef.current = {
+          subs:    data.pagination?.subs ?? pag.subs,
+          seenIds: updatedSeen,
+        };
+        setReels(prev => append ? [...prev, ...newReels] : newReels);
+        if (!append) setMobileTab('feed');
+      } else if (data.success && retryCount < 3) {
+        // Pool returned nothing — retry with cleared seenIds to avoid deadlock
+        const freshPag = { ...pag, seenIds: new Set<string>() };
+        await fetchReels(q, isNsfw, freshPag, append, retryCount + 1, currentId);
       }
     } catch {
       // silent
@@ -117,20 +107,29 @@ export default function DashboardPage({ avatar }: { avatar?: React.ReactNode }) 
         loadingRef.current = false;
       }
     }
-  }, [addToast]);
+  }, []);
 
   const onSearch = useCallback(async (q: string, isNsfw: boolean) => {
     setQuery(q);
     setReels([]);
     queryRef.current = q;
     nsfwRef.current  = isNsfw;
-    pagRef.current = { subs: '', subIdx: 0, after: null, sortCycle: 0, seenIds: new Set() };
+    pagRef.current = { subs: '', seenIds: new Set() };
     await fetchReels(q, isNsfw, pagRef.current, false);
   }, [fetchReels]);
 
   const onLoadMore = useCallback(async () => {
     await fetchReels(queryRef.current, nsfwRef.current, pagRef.current, true);
   }, [fetchReels]);
+
+  // Track watch events for personalization weights
+  const onWatchReel = useCallback((subreddit: string) => {
+    fetch('/api/reddit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'watch', subreddit }),
+    }).catch(() => {});
+  }, []);
 
 
   const toggleNsfw = useCallback(() => {
