@@ -4,6 +4,7 @@ import './globals.css';
 import { ToastProvider } from '@/components/ToastContext';
 import SecurityInitializer from '@/components/SecurityInitializer';
 const inter = Inter({ subsets: ['latin'] });
+import { Analytics } from "@vercel/analytics/next"
 
 export const metadata: Metadata = {
   title: 'Reddit Reel AI — Discover Videos You\'ll Love',
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ToastProvider>
           {children}
         </ToastProvider>
+        <Analytics />
       </body>
     </html>
   );
