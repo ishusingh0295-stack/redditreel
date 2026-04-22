@@ -2,11 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   devIndicators: false,
-  // Production optimizations
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
-  // Image optimization
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "**.redd.it" },
@@ -20,7 +18,6 @@ const nextConfig: NextConfig = {
     ],
     unoptimized: false,
   },
-  // Security & API headers
   async headers() {
     return [
       {
@@ -34,14 +31,12 @@ const nextConfig: NextConfig = {
           { key: "X-XSS-Protection", value: "1; mode=block" },
         ],
       },
-      // Security headers for all pages
       {
         source: "/:path*",
         headers: [
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         ],
       },
-      // Proper MIME type for SVG icons
       {
         source: "/app-icon.svg",
         headers: [
@@ -49,7 +44,6 @@ const nextConfig: NextConfig = {
           { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
         ],
       },
-      // Proper MIME type for manifest
       {
         source: "/manifest.json",
         headers: [

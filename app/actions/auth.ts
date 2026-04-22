@@ -38,7 +38,7 @@ export async function registerAction(formData: FormData) {
     const byEmail = await prisma.user.findUnique({ where: { email } });
     if (byEmail) return { error: 'An account with this email already exists.' };
 
-    // 3 — Duplicate name check (case-insensitive — SQLite stores as-is, compare lowercased)
+    // 3 — Duplicate name check (case-insensitive)
     const byName = await prisma.user.findFirst({
       where: { name: { equals: name } },
     });

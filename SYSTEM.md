@@ -50,12 +50,11 @@ Disk Space: 1GB
 OS: Latest stable version
 ```
 
-### Optional Dependencies
+### External Services Required
 
 ```yaml
-Ollama: Latest version (for AI features)
-Docker: Latest version (for containerization)
-PostgreSQL: 14+ (for production database)
+PostgreSQL: 14+  (Neon, Supabase, Railway, or self-hosted)
+Ollama: Latest   (optional — for AI query interpretation)
 ```
 
 ---
@@ -75,19 +74,19 @@ PostgreSQL: 14+ (for production database)
 
 | Technology | Version | Purpose |
 |------------|---------|---------|
+| **HLS.js** | Latest | HLS video streaming with buffer tuning |
+| **next-pwa** | Latest | Service worker + offline reel cache |
 | **Framer Motion** | 12.38.0 | Animation library |
 | **Lucide React** | 0.563.0 | Icon library |
 | **Lenis** | 1.3.20 | Smooth scroll |
 | **Tailwind CSS** | 4.x | Utility-first CSS |
-| **CSS Modules** | Built-in | Scoped styling |
 
 ### Backend & Database
 
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| **Prisma** | 5.22.0 | ORM for database |
-| **SQLite** | Default | Development database |
-| **PostgreSQL** | 14+ | Production database |
+| **Prisma** | 5.22.0 | ORM |
+| **PostgreSQL** | 14+ | Only supported database |
 | **Auth.js** | 5.0.0-beta.30 | Authentication |
 | **bcryptjs** | 3.0.3 | Password hashing |
 
@@ -96,8 +95,8 @@ PostgreSQL: 14+ (for production database)
 | Technology | Version | Purpose |
 |------------|---------|---------|
 | **Ollama** | Latest | Local LLM integration |
-| **Reddit API** | v1 | Content fetching |
-| **HLS Streaming** | - | Video playback |
+| **Reddit API** | v1 | Content fetching via OAuth |
+| **HLS Streaming** | — | Video playback via HLS.js |
 
 ### Development Tools
 
@@ -116,47 +115,40 @@ PostgreSQL: 14+ (for production database)
 ```env
 # Authentication (REQUIRED)
 AUTH_SECRET=                    # Generate: npx auth secret
-DATABASE_URL=                   # Database connection string
+DATABASE_URL=                   # PostgreSQL connection string
 
-# Production URLs (REQUIRED for deployment)
-# For local development: http://localhost:3000
-# For Vercel: Auto-detected (no need to set)
-# For other platforms: https://your-domain.com
-NEXTAUTH_URL=http://localhost:3000
-AUTH_TRUST_HOST=true           # Trust proxy headers (required for production)
+# Production URLs
+NEXTAUTH_URL=http://localhost:3000   # Local dev only; Vercel auto-detects
+AUTH_TRUST_HOST=true                 # Required for production proxies
 ```
 
 ### Optional Variables
 
 ```env
-# Reddit API (Optional - improves rate limits)
-REDDIT_CLIENT_ID=              # Reddit app client ID
-REDDIT_CLIENT_SECRET=          # Reddit app client secret
+# Reddit API (optional — improves rate limits)
+REDDIT_CLIENT_ID=
+REDDIT_CLIENT_SECRET=
 
-# AI Features (Optional)
+# AI Features (optional)
 OLLAMA_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.2
 
-# Admin Seed (Optional)
+# Admin Seed (optional)
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=change-me
 ADMIN_NAME=Admin
 
-# Next.js Configuration
-NEXT_TELEMETRY_DISABLED=1      # Disable telemetry
+NEXT_TELEMETRY_DISABLED=1
 ```
 
-### Database URLs
+### Database URL (PostgreSQL only)
 
-**Development (SQLite):**
 ```env
-DATABASE_URL="file:./prisma/dev.db"
-```
-
-**Production (PostgreSQL):**
-```env
+# Neon / Supabase / Railway / self-hosted
 DATABASE_URL="postgresql://user:password@host:5432/database?sslmode=require"
 ```
+
+> ⚠️ SQLite is **not supported**. The Prisma schema uses `provider = "postgresql"`.
 
 ---
 
@@ -169,29 +161,33 @@ DATABASE_URL="postgresql://user:password@host:5432/database?sslmode=require"
 | **User** | User accounts | id, email, password, role |
 | **Session** | Auth sessions | sessionToken, userId, expires |
 | **Account** | OAuth accounts | provider, providerAccountId |
-| **Board** | Reel collections | name, userId, reels |
-| **Reel** | Saved reels | url, title, subreddit |
-| **Note** | User notes | content, userId |
-| **UserActivity** | Activity tracking | type, payload, userId |
+| **Board** | Reel collections | name, userId |
+| **SavedReel** | Saved reels | id (Reddit post ID), title, videoUrl |
+| **Note** | User notes | text, userId |
+| **SearchQuery** | Analytics | query, hits |
+| **UserActivity** | Feed personalization | type, payload, userId |
 
 ### User Roles
 
 ```typescript
-enum Role {
-  USER    // Default role for all users
-  ADMIN   // Full system access
-}
+// role field on User model
+"USER"   // Default — access to /dashboard
+"ADMIN"  // Full access including /admin
 ```
+
+### First User Rule
+The first registered user is automatically promoted to `ADMIN`.
 
 ### Relationships
 
 ```
 User (1) ──── (N) Board
+User (1) ──── (N) SavedReel
 User (1) ──── (N) Note
 User (1) ──── (N) UserActivity
 User (1) ──── (N) Session
 User (1) ──── (N) Account
-Board (1) ──── (N) Reel (many-to-many)
+Board (1) ──── (N) SavedReel
 ```
 
 ---
@@ -210,9 +206,10 @@ Board (1) ──── (N) Reel (many-to-many)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/dashboard` | User dashboard |
-| GET | `/api/reddit` | Fetch Reddit content |
-| POST | `/api/interpret` | AI query interpretation |
+| GET | `/dashboard` | User dashboard with reel feed |
+| GET | `/api/reddit` | Fetch & rank Reddit reels |
+| POST | `/api/reddit` | Track watch event (personalization) |
+| POST | `/api/interpret` | AI query interpretation (Ollama) |
 
 ### Admin Endpoints (Requires ADMIN role)
 
@@ -224,49 +221,41 @@ Board (1) ──── (N) Reel (many-to-many)
 
 ### API Response Format
 
-**Success Response:**
+**Success:**
 ```json
-{
-  "success": true,
-  "data": { ... }
-}
+{ "success": true, "reels": [...], "pagination": { "subs": "..." } }
 ```
 
-**Error Response:**
+**Error:**
 ```json
-{
-  "error": "Error message",
-  "code": "ERROR_CODE"
-}
+{ "success": false, "error": "message" }
 ```
 
 ---
 
 ## 🔒 Authentication Flow
 
-### Registration Flow
+### Registration
 
 ```
-1. User submits email/password
-2. Server validates input
-3. Password hashed with bcrypt (10 rounds)
-4. User created in database
-5. First user gets ADMIN role
-6. Session created
-7. JWT token issued
+1. User submits name/email/password
+2. Format validation (regex)
+3. Duplicate email + name check (case-insensitive)
+4. bcrypt hash (10 rounds)
+5. User created — first user gets ADMIN role
+6. JWT session issued via Auth.js
 ```
 
-### Login Flow
+### Login
 
 ```
 1. User submits credentials
-2. Server finds user by email
-3. Password verified with bcrypt
-4. Session created
-5. JWT token issued
-6. User redirected based on role:
-   - ADMIN → /admin
-   - USER → /dashboard (or callbackUrl)
+2. Email lookup
+3. bcrypt verify
+4. JWT session issued
+5. Role-based redirect:
+   ADMIN → /admin
+   USER  → /dashboard (or callbackUrl)
 ```
 
 ### Session Management
@@ -275,23 +264,16 @@ Board (1) ──── (N) Reel (many-to-many)
 Token Type: JWT
 Storage: HttpOnly secure cookies
 Expiration: 30 days
-Refresh: Automatic on activity
+CSRF: Handled by Auth.js
 ```
 
 ### Route Protection
 
 ```typescript
-// Middleware (proxy.ts)
-- Checks authentication status
-- Validates user role
-- Redirects unauthorized users to landing page with ?auth=1
-- Preserves intended destination in callbackUrl
-- Adds security headers
-
-// Auth.js redirect callback
-- Uses relative paths to avoid hardcoded URLs
-- Respects baseUrl from environment
-- Falls back to /dashboard for safety
+// proxy.ts (Next.js middleware)
+- Checks Auth.js session on every request
+- /dashboard, /admin → redirect to /?auth=1 if unauthenticated
+- /admin → returns 403 if role !== ADMIN
 ```
 
 ---
@@ -300,72 +282,62 @@ Refresh: Automatic on activity
 
 ### Next.js Config (`next.config.ts`)
 
-```typescript
-const nextConfig = {
-  devIndicators: false,
-  reactStrictMode: true,
-  poweredByHeader: false,
-  compress: true,
-  images: {
-    remotePatterns: [
-      { protocol: "https", hostname: "**.redd.it" },
-      { protocol: "https", hostname: "**.reddit.com" },
-      // ... more patterns
-    ],
-    unoptimized: false,
-  },
-  async headers() {
-    // Security headers configuration
-  },
-}
-```
+Key settings:
+- `reactStrictMode: true`
+- `poweredByHeader: false`
+- `compress: true`
+- Image remote patterns for Reddit, Imgur, redd.it, gfycat
+- Security headers on all routes and API routes
+- **next-pwa** enabled in production (disabled in dev to preserve HMR)
+
+### PWA / Service Worker (`public/sw.js`)
+
+| Cache | Strategy | Limit |
+|-------|----------|-------|
+| App shell (`/_next/static/`) | CacheFirst | Long TTL |
+| `/api/reddit` | NetworkFirst | Falls back to cached JSON |
+| Media (v.redd.it, imgur, etc.) | CacheFirst + LRU eviction | **10 reels max** |
 
 ### Build Scripts
 
 ```json
 {
-  "dev": "next dev",                    // Development with Turbopack
-  "build": "next build --no-turbo",     // Production build (stable)
-  "start": "next start",                // Production server
-  "lint": "eslint",                     // Code linting
-  "seed": "tsx prisma/seed.ts"          // Database seeding
+  "dev":   "next dev",
+  "build": "next build",
+  "start": "next start",
+  "lint":  "next lint",
+  "seed":  "tsx prisma/seed.ts"
 }
 ```
 
-### Build Optimizations
+### Virtual Reel Window (ReelFeed)
 
-- **React Strict Mode**: Enabled for development checks
-- **Compression**: Enabled for smaller bundle sizes
-- **Image Optimization**: Enabled with remote patterns
-- **Turbopack**: Disabled for production builds (stability)
-- **Telemetry**: Disabled for privacy
+- DOM always holds exactly **3 video slots** (prev / current / next)
+- Swipe = CSS `translateY` only — no unmount, no network fetch, no HLS reinit
+- HLS buffer: active slot `maxBufferLength: 30s`, preload slots `8s`
+- Background feed prefetch via `startTransition` when user reaches reel N−2 from end
 
 ---
 
 ## 🚀 Deployment
 
-### Vercel Deployment
+### Vercel (Recommended)
 
-**Prerequisites:**
 ```bash
-- GitHub repository
-- Vercel account
-- Environment variables configured
-```
+# 1. Push to GitHub
+git push origin main
 
-**Steps:**
-```bash
-1. Push code to GitHub
-2. Import project in Vercel
-3. Configure environment variables
-4. Deploy
+# 2. Import at vercel.com → add env vars → Deploy
+
+# 3. After first deploy — run DB migration
+vercel env pull
+npx prisma db push
 ```
 
 **Environment Variables (Vercel):**
 ```env
 AUTH_SECRET=your-secret
 DATABASE_URL=postgresql://...
-# NEXTAUTH_URL is auto-detected by Vercel - no need to set manually
 AUTH_TRUST_HOST=true
 REDDIT_CLIENT_ID=your-id
 REDDIT_CLIENT_SECRET=your-secret
@@ -373,15 +345,10 @@ OLLAMA_URL=http://your-ollama-server:11434
 NEXT_TELEMETRY_DISABLED=1
 ```
 
-**Important Notes:**
-- Vercel automatically sets `NEXTAUTH_URL` based on your deployment URL
-- For custom domains, Vercel handles this automatically
-- Never hardcode production URLs in your code - use relative paths
-- The `trustHost: true` option in `auth.ts` allows Auth.js to work with proxies
+> Vercel auto-detects `NEXTAUTH_URL` — do **not** set it manually on Vercel.
 
-### Docker Deployment
+### Docker
 
-**Dockerfile:**
 ```dockerfile
 FROM node:20-alpine
 WORKDIR /app
@@ -394,264 +361,123 @@ EXPOSE 3000
 CMD ["npm", "start"]
 ```
 
-**Build & Run:**
 ```bash
 docker build -t reddit-reel-ai .
 docker run -p 3000:3000 --env-file .env reddit-reel-ai
 ```
 
-### Database Migration (Production)
+### Database Migration
 
 ```bash
-# Generate Prisma Client
-npx prisma generate
-
-# Push schema to database
-npx prisma db push
-
-# Run migrations (if using migrate)
-npx prisma migrate deploy
-
-# Seed database (optional)
-npm run seed
+npx prisma generate       # Generate Prisma Client
+npx prisma db push        # Push schema to PostgreSQL
+npx prisma migrate deploy # Run pending migrations
+npm run seed              # Optional: seed admin user
 ```
 
 ---
 
 ## 🐛 Troubleshooting
 
-### Common Issues
+### Build Failures
 
-#### Build Failures
-
-**Issue:** React Compiler error
-```
-Error: Failed to resolve package babel-plugin-react-compiler
-```
-
-**Solution:**
+**`Could not find declaration file for module 'next-pwa'`**
 ```bash
-# Ensure next.config.ts is minimal
-# Remove any experimental.reactCompiler settings
-# Use build script: "build": "next build --no-turbo"
+# Already handled by next-pwa.d.ts shim in project root.
+# Ensure tsconfig.json includes "." in typeRoots or leave as-is.
 ```
 
-#### Database Connection
+### Database Connection
 
-**Issue:** Can't connect to database
-```
-Error: P1001: Can't reach database server
-```
-
-**Solution:**
+**`P1001: Can't reach database server`**
 ```bash
 # Check DATABASE_URL in .env
-# Verify database is running
-# Check network/firewall settings
-# For PostgreSQL, ensure SSL mode is correct
+# PostgreSQL only — no SQLite fallback
+# Verify SSL mode: ?sslmode=require for Neon/Supabase
 ```
 
-#### Authentication Issues
+### Authentication
 
-**Issue:** Session not persisting
-```
-Error: No session found
-```
-
-**Solution:**
+**Session not persisting:**
 ```bash
-# Verify AUTH_SECRET is set
-# For local dev: NEXTAUTH_URL=http://localhost:3000
-# For Vercel: NEXTAUTH_URL is auto-detected (don't set it)
-# For other platforms: Set NEXTAUTH_URL to your domain
-# Ensure AUTH_TRUST_HOST=true in production
-# Ensure trustHost: true in auth.ts config
-# Clear browser cookies and try again
+# Set AUTH_SECRET (required)
+# Local dev: NEXTAUTH_URL=http://localhost:3000
+# Production: do NOT set NEXTAUTH_URL on Vercel (auto-detected)
+# Set AUTH_TRUST_HOST=true in production
 ```
 
-**Issue:** Redirecting to wrong URL after login
-```
-Error: Redirects to old deployment URL
-```
+### Ollama / AI
 
-**Solution:**
+**AI features not responding:**
 ```bash
-# Check .env and .env.local files for hardcoded URLs
-# Remove any old NEXTAUTH_URL values
-# For local dev: NEXTAUTH_URL=http://localhost:3000
-# For production: Let platform auto-detect or set to current domain
-# Verify auth.ts has redirect callback with relative paths
-# Clear browser cache and cookies
+ollama serve                         # Start Ollama
+ollama pull llama3.2                 # Pull model
+curl http://localhost:11434/api/tags # Verify running
 ```
 
-#### Ollama Connection
+### Performance
 
-**Issue:** AI features not working
-```
-Error: Failed to connect to Ollama
-```
-
-**Solution:**
+**Slow build:**
 ```bash
-# Verify Ollama is running: ollama serve
-# Check OLLAMA_URL is correct
-# Ensure model is pulled: ollama pull llama3.2
-# Test connection: curl http://localhost:11434/api/tags
-```
-
-### Performance Issues
-
-**Slow Build Times:**
-```bash
-# Use --no-turbo flag
+Remove-Item -Recurse -Force .next    # Clear Next.js cache (Windows)
 npm run build
-
-# Clear Next.js cache
-rm -rf .next
-
-# Clear node_modules and reinstall
-rm -rf node_modules package-lock.json
-npm install
 ```
 
-**Slow Runtime:**
-```bash
-# Enable production mode
-NODE_ENV=production npm start
-
-# Check database indexes
-npx prisma studio
-
-# Monitor with Vercel Analytics
-```
-
-### Debug Mode
-
-**Enable verbose logging:**
-```bash
-# Development
-DEBUG=* npm run dev
-
-# Build
-npm run build -- --debug
-
-# Prisma
-DEBUG="prisma:*" npm run dev
-```
+**Reel lag / buffering:**
+- Virtual 3-slot window means no unmount on swipe — lag is a network issue
+- Check HLS buffer settings in `attachHls()` in `ReelFeed.tsx`
+- Active slot: `maxBufferLength: 30`, preload: `maxBufferLength: 8`
 
 ---
 
 ## 📊 System Monitoring
 
-### Health Checks
-
-```typescript
-// API health endpoint
-GET /api/health
-
-Response:
-{
-  "status": "ok",
-  "database": "connected",
-  "timestamp": "2024-01-01T00:00:00Z"
-}
-```
-
-### Performance Metrics
+### Performance Targets
 
 | Metric | Target | Tool |
 |--------|--------|------|
 | **Page Load** | < 2s | Vercel Analytics |
 | **API Response** | < 500ms | Server logs |
 | **Database Query** | < 100ms | Prisma logs |
-| **Build Time** | < 5min | CI/CD logs |
-
-### Logging
-
-```typescript
-// Server-side logging
-console.log('[INFO]', message)
-console.error('[ERROR]', error)
-
-// Client-side (disabled in production)
-// See lib/security.ts
-```
-
----
-
-## 🔄 Update & Maintenance
-
-### Dependency Updates
-
-```bash
-# Check for updates
-npm outdated
-
-# Update all dependencies
-npm update
-
-# Update specific package
-npm install package@latest
-
-# Update Next.js
-npm install next@latest react@latest react-dom@latest
-```
+| **Reel Swipe** | 0ms lag | CSS transform only |
 
 ### Database Maintenance
 
 ```bash
-# Backup database (SQLite)
-cp prisma/dev.db prisma/backup.db
+# Backup (PostgreSQL)
+pg_dump $DATABASE_URL > backup.sql
 
-# Backup database (PostgreSQL)
-pg_dump DATABASE_URL > backup.sql
-
-# Reset database
+# Reset (development only)
 npx prisma migrate reset
 
-# View database
+# Browse data
 npx prisma studio
 ```
 
 ### Security Updates
 
 ```bash
-# Audit dependencies
 npm audit
-
-# Fix vulnerabilities
 npm audit fix
-
-# Force fix (use with caution)
-npm audit fix --force
 ```
 
 ---
 
 ## 📞 Support & Resources
 
-### Documentation
-
 - [Next.js Docs](https://nextjs.org/docs)
 - [Prisma Docs](https://www.prisma.io/docs)
 - [Auth.js Docs](https://authjs.dev)
+- [HLS.js Docs](https://github.com/video-dev/hls.js)
+- [next-pwa Docs](https://github.com/shadowwalker/next-pwa)
 - [Reddit API Docs](https://www.reddit.com/dev/api)
-
-### Community
-
 - [GitHub Issues](https://github.com/tarunkumar-sys/next_llm/issues)
-- [GitHub Discussions](https://github.com/tarunkumar-sys/next_llm/discussions)
-
-### Contact
-
-- **Email**: your-email@example.com
-- **GitHub**: [@tarunkumar-sys](https://github.com/tarunkumar-sys)
 
 ---
 
 <div align="center">
 
-**Last Updated:** 2024
+**Last Updated:** April 2026
 
 **Maintained by:** [Tarun Kumar](https://github.com/tarunkumar-sys)
 

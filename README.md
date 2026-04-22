@@ -45,31 +45,31 @@ Transform Reddit into an infinite scroll video experience with intelligent AI se
 <td width="50%">
 
 ### 🤖 **Smart AI Search**
-Natural language queries powered by Ollama LLM with intelligent fallback
+Natural language queries powered by Ollama LLM with intelligent rule-based fallback
 
-### 📱 **Vertical Feed**
-Full-screen TikTok-style scroll experience with smooth animations
+### 📱 **Zero-Lag Reel Feed**
+Virtual 3-slot DOM window — swipe changes only CSS `translateY`. No unmount, no refetch, no rebuffer.
 
-### 🎬 **Full Audio Support**
-HLS streaming for complete Reddit video playback
+### 🎬 **HLS.js Streaming**
+Full Reddit video playback with tuned buffer lengths: 30s active, 8s preload
 
-### 💾 **Custom Boards**
-Save and organize your favorite reels into collections
+### 💾 **Notepad & Boards**
+Save and organize favorite reels with tags and collections
 
 </td>
 <td width="50%">
 
 ### 🔐 **Secure Auth**
-JWT sessions with bcrypt encryption and role-based access
+JWT sessions with bcrypt encryption and role-based access control
+
+### 📶 **Offline-Ready PWA**
+Service worker caches last 10 viewed reels — instant load on slow or no connection
 
 ### 🔞 **NSFW Mode**
-Age-gated adult content with 2000+ subreddit coverage
+Age-gated adult content with 500+ subreddit coverage
 
 ### 👨‍💼 **Admin Dashboard**
 User management, analytics, and content moderation
-
-### ⚡ **Smart Preloading**
-Next reel loads while you watch for seamless experience
 
 </td>
 </tr>
@@ -82,7 +82,7 @@ Next reel loads while you watch for seamless experience
 ### Prerequisites
 
 ```bash
-Node.js 18+  |  npm/yarn  |  Ollama (optional)
+Node.js 18+  |  npm  |  PostgreSQL 14+  |  Ollama (optional)
 ```
 
 ### Installation
@@ -99,7 +99,7 @@ npm install
 cp .env.example .env.local
 # Edit .env.local with your configuration
 
-# Initialize database
+# Initialize database (PostgreSQL required)
 npx prisma generate
 npx prisma db push
 
@@ -118,7 +118,7 @@ Create `.env.local` in the root directory:
 ```env
 # Authentication (Required)
 AUTH_SECRET=your-secret-key-here    # Generate: npx auth secret
-DATABASE_URL=file:./prisma/dev.db
+DATABASE_URL=postgresql://user:pass@host:5432/db?sslmode=require
 
 # Reddit API (Optional - improves rate limits)
 REDDIT_CLIENT_ID=your-client-id
@@ -151,12 +151,13 @@ OLLAMA_MODEL=llama3.2
 ![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
 ![Framer Motion](https://img.shields.io/badge/Framer_Motion-0055FF?style=for-the-badge&logo=framer&logoColor=white)
-![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white)
+![HLS.js](https://img.shields.io/badge/HLS.js-FF6B35?style=for-the-badge)
+![PWA](https://img.shields.io/badge/PWA-5A0FC8?style=for-the-badge&logo=pwa&logoColor=white)
 
 ### Backend
 ![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=white)
 ![Prisma](https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white)
-![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
 
 ### Authentication & Security
 ![Auth.js](https://img.shields.io/badge/Auth.js-purple?style=for-the-badge)
@@ -167,11 +168,6 @@ OLLAMA_MODEL=llama3.2
 ![Ollama](https://img.shields.io/badge/Ollama-000000?style=for-the-badge)
 ![Reddit API](https://img.shields.io/badge/Reddit_API-FF4500?style=for-the-badge&logo=reddit&logoColor=white)
 
-### Development Tools
-![ESLint](https://img.shields.io/badge/ESLint-4B32C3?style=for-the-badge&logo=eslint&logoColor=white)
-![Git](https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=git&logoColor=white)
-![VS Code](https://img.shields.io/badge/VS_Code-007ACC?style=for-the-badge&logo=visualstudiocode&logoColor=white)
-
 </div>
 
 ---
@@ -181,99 +177,92 @@ OLLAMA_MODEL=llama3.2
 ```
 reddit-reel-ai/
 ├── app/
-│   ├── api/              # API routes (Reddit, AI interpreter)
-│   │   ├── reddit/       # Reddit content fetcher
-│   │   └── interpret/    # AI query interpreter
-│   ├── actions/          # Server actions (auth, database)
-│   │   ├── auth.ts       # Authentication actions
-│   │   ├── db.ts         # Database operations
+│   ├── api/
+│   │   ├── reddit/       # Reddit content fetcher + personalization
+│   │   └── interpret/    # AI query interpreter (Ollama)
+│   ├── actions/
+│   │   ├── auth.ts       # Register / login server actions
+│   │   ├── db.ts         # SavedReel / Note / Board CRUD
 │   │   └── admin.ts      # Admin operations
 │   ├── admin/            # Admin dashboard
 │   ├── dashboard/        # User dashboard
 │   └── _landing.tsx      # Landing page
-├── components/           # React components
-│   ├── ReelFeed.tsx      # Video player
+├── components/
+│   ├── ReelFeed.tsx      # Virtual 3-slot reel window + HLS.js
 │   ├── ChatPanel.tsx     # AI search interface
-│   ├── Notepad.tsx       # Boards manager
-│   ├── LoginModal.tsx    # Authentication modal
+│   ├── Notepad.tsx       # Saved reels manager
+│   ├── LoginModal.tsx    # Auth modal
 │   └── ...
-├── lib/                  # Utilities & helpers
-│   ├── feedEngine.ts     # Feed algorithm
-│   ├── security.ts       # Security utilities
+├── lib/
+│   ├── feedEngine.ts     # Weighted round-robin feed algorithm
 │   └── ...
-├── prisma/               # Database schema & migrations
-│   ├── schema.prisma     # Database schema
-│   └── migrations/       # Migration history
-└── public/               # Static assets
-    └── demo_img/         # Demo screenshots
+├── prisma/
+│   ├── schema.prisma     # PostgreSQL schema
+│   └── migrations/
+├── public/
+│   ├── sw.js             # Service worker (10-reel LRU cache)
+│   ├── manifest.json     # PWA manifest
+│   └── demo_img/
+├── next.config.ts        # next-pwa + security headers
+└── next-pwa.d.ts         # Type shim for next-pwa
 ```
 
 ---
 
 ## 🎯 Key Features Explained
 
-### 🤖 AI-Powered Search
-Query in natural language: *"Show me funny cat videos"* → AI interprets and fetches relevant content from 2000+ subreddits
+### 📺 Virtual Reel Window
+Only 3 `<video>` elements ever exist in the DOM. On swipe, only CSS `translateY` changes — no component unmount, no network request, no HLS.js reinit. Zero-lag swipe at any speed.
+
+### 🎥 HLS.js with Smart Buffering
+- **Active slot**: `maxBufferLength: 30s`, `maxMaxBufferLength: 60s`
+- **Preload slots**: `maxBufferLength: 8s`
+- HLS instance reused across swipes — destroyed only when the URL changes
+
+### 🤖 AI-Powered Feed
+Query in natural language: *"Show me funny cat videos"* → Ollama interprets → fetches from 2000+ subreddits
 
 **Two-tier system:**
-1. **Ollama LLM** - Advanced natural language understanding
-2. **Rule-based fallback** - Always available, regex-based matching
+1. **Ollama LLM** — Advanced natural language understanding
+2. **Rule-based fallback** — Always available, regex-based matching
 
 ### 📊 Intelligent Feed Algorithm
-- **Weighted round-robin** distribution for variety
-- **Personalization** based on user activity
-- **No consecutive posts** from same subreddit
-- **Smart preloading** for seamless experience
+- **Weighted round-robin** for subreddit variety
+- **Personalization** weights from watch history (last 200 events)
+- `startTransition` background prefetch when user is 5 reels from end
 
-### 🗂️ Comprehensive Content Coverage
-
-**Normal Mode:**
-- 50+ categories
-- 2000+ subreddits
-- Categories: Animals, Gaming, Sports, Tech, Music, Movies, Art, Science, and more
-
-**NSFW Mode:**
-- 35+ categories
-- 500+ subreddits
-- Age-gated with proper authentication
+### 📶 Offline PWA
+Service worker at `/sw.js` caches:
+- App shell (JS/CSS/fonts) — CacheFirst, long TTL
+- Last **10 viewed reels** media — LRU eviction, instant revisit
+- `/api/reddit` JSON — NetworkFirst with stale fallback
 
 ---
 
 ## 🛡️ Security Features
 
-<table>
-<tr>
-<td>
-
 - 🔒 **JWT Authentication** with HttpOnly cookies
 - 🔐 **bcrypt Password Hashing** (10 rounds)
-- 🛡️ **Security Headers** (CSP, X-Frame-Options, etc.)
-- 👮 **Role-Based Access Control** (User/Admin)
-
-</td>
-<td>
-
-- 🚫 **API Route Protection** with auth guards
-- 🔍 **Input Sanitization** and validation
-- 🔑 **Session Management** with secure tokens
-- 📝 **Audit Logging** for admin actions
-
-</td>
-</tr>
-</table>
+- 🛡️ **HTTP Security Headers** (X-Frame-Options, nosniff, XSS-Protection)
+- 👮 **Role-Based Access Control** (USER / ADMIN)
+- 🚫 **API Route Protection** with server-side auth guards
+- 🔍 **Input Validation** on all server actions
+- 📝 **Row-level data isolation** via `userId` filtering
+- ✅ **All security is server-side** — no client-side DevTools blocking
 
 ---
 
 ## 📜 Available Scripts
 
 ```bash
-npm run dev          # Start development server (Turbopack)
+npm run dev          # Start development server
 npm run build        # Build for production
 npm start            # Start production server
 npm run lint         # Run ESLint
+npm run seed         # Seed admin user
 npx prisma studio    # Open database GUI
-npx prisma db push   # Push schema changes to database
-npx prisma generate  # Generate Prisma Client
+npx prisma db push   # Push schema to PostgreSQL
+npx prisma generate  # Regenerate Prisma Client
 ```
 
 ---
@@ -285,8 +274,8 @@ npx prisma generate  # Generate Prisma Client
 
 1. Push your code to GitHub
 2. Import project in [Vercel](https://vercel.com)
-3. Add environment variables
-4. Deploy!
+3. Add environment variables (see SYSTEM.md)
+4. Deploy — Vercel auto-detects `NEXTAUTH_URL`, do NOT set it manually
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions.
 
@@ -300,7 +289,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions.
 docker build -t reddit-reel-ai .
 
 # Run container
-docker run -p 3000:3000 reddit-reel-ai
+docker run -p 3000:3000 --env-file .env reddit-reel-ai
 ```
 
 </details>
@@ -313,7 +302,7 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for gu
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
@@ -329,17 +318,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **Reddit API** for content delivery
 - **Ollama** for local AI capabilities
+- **HLS.js** for robust video streaming
 - **Next.js Team** for the amazing framework
 - **Vercel** for hosting platform
-- All contributors and supporters
-
----
-
-## 📞 Support
-
-- 📧 Email: [your-email@example.com](mailto:your-email@example.com)
-- 🐛 Issues: [GitHub Issues](https://github.com/tarunkumar-sys/next_llm/issues)
-- 💬 Discussions: [GitHub Discussions](https://github.com/tarunkumar-sys/next_llm/discussions)
 
 ---
 
@@ -349,6 +330,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ⭐ Star this repo if you find it useful!
 
-[Report Bug](https://github.com/tarunkumar-sys/next_llm/issues) • [Request Feature](https://github.com/tarunkumar-sys/next_llm/issues) • [Documentation](https://github.com/tarunkumar-sys/next_llm/wiki)
+[Report Bug](https://github.com/tarunkumar-sys/next_llm/issues) • [Request Feature](https://github.com/tarunkumar-sys/next_llm/issues) • [Documentation](SYSTEM.md)
 
 </div>

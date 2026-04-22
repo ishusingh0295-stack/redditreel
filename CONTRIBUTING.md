@@ -14,8 +14,8 @@ Thank you for your interest in contributing! This document provides guidelines a
 ### 1. Fork & Clone
 
 ```bash
-git clone https://github.com/yourusername/reddit-reel-ai.git
-cd reddit-reel-ai
+git clone https://github.com/tarunkumar-sys/next_llm.git
+cd next_llm
 npm install
 ```
 
@@ -90,12 +90,13 @@ docs(readme): update installation steps
 ## 🏗 Project Structure
 
 ```
-src/
-├── app/              # Next.js app directory
-├── components/       # React components
-├── lib/              # Utilities
-├── prisma/           # Database schema
-└── public/           # Static assets
+next_llm/
+├── app/              # Next.js App Router (routes, actions, API)
+├── components/       # React components (ReelFeed, ChatPanel, …)
+├── lib/              # Utilities (feedEngine, …)
+├── prisma/           # PostgreSQL schema & migrations
+├── public/           # Static assets + service worker (sw.js)
+└── next.config.ts    # next-pwa + security headers
 ```
 
 ## 🎨 Code Style

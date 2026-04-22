@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/ToastContext";
-import { Analytics } from "@vercel/analytics/next";
+import { Analytics } from "@vercel/analytics/next"
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
-const inter = Inter({ 
+const inter = Inter({
   subsets: ["latin"],
   display: 'swap', // Optimize font loading - prevents layout shift
   preload: true,
@@ -59,12 +60,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
-      <body 
-        className={`${inter.className} antialiased`} 
+      <body
+        className={`${inter.className} antialiased`}
         suppressHydrationWarning
         style={{ position: 'relative' }} // Fix: Ensure proper positioning for scroll calculations
       >
         <ToastProvider>{children}</ToastProvider>
+        <ServiceWorkerRegister />
         <Analytics />
       </body>
     </html>

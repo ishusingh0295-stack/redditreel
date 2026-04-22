@@ -2,6 +2,10 @@
 
 This guide covers deploying Reddit Reel AI to production environments.
 
+> ⚠️ **PostgreSQL required.** SQLite is not supported. Use [Neon](https://neon.tech), [Supabase](https://supabase.com), [Railway](https://railway.app), or a self-hosted instance.
+
+---
+
 ## 🚀 Vercel (Recommended)
 
 Vercel is the easiest way to deploy Next.js applications.
@@ -19,20 +23,22 @@ git push origin main
 1. Go to [vercel.com](https://vercel.com)
 2. Click "New Project"
 3. Import your GitHub repository
-4. Select the project
 
 ### 3. Configure Environment Variables
 
-In Vercel dashboard, go to **Settings → Environment Variables** and add:
+In Vercel dashboard → **Settings → Environment Variables**:
 
 ```env
-AUTH_SECRET=your-generated-secret
-DATABASE_URL=file:./prisma/dev.db
-OLLAMA_URL=http://localhost:11434
-OLLAMA_MODEL=llama3.2
+AUTH_SECRET=your-generated-secret        # npx auth secret
+DATABASE_URL=postgresql://user:pass@host:5432/db?sslmode=require
+AUTH_TRUST_HOST=true
 REDDIT_CLIENT_ID=your-reddit-app-id
 REDDIT_CLIENT_SECRET=your-reddit-app-secret
+OLLAMA_URL=http://your-ollama-server:11434   # optional
+NEXT_TELEMETRY_DISABLED=1
 ```
+
+> **Do NOT set `NEXTAUTH_URL` on Vercel** — it is auto-detected from your deployment URL.
 
 ### 4. Deploy
 
@@ -40,46 +46,33 @@ Click **Deploy** and wait for the build to complete.
 
 ### 5. Database Setup
 
-After first deployment, run migrations:
+After first deployment:
 
 ```bash
-vercel env pull  # Pull environment variables
-npx prisma db push  # Run migrations
+vercel env pull        # Pull environment variables locally
+npx prisma db push     # Push schema to PostgreSQL
+npm run seed           # Optional: create admin user
 ```
 
 ---
 
 ## 🐳 Docker
 
-Deploy using Docker containers.
-
-### 1. Create Dockerfile
+### Dockerfile
 
 ```dockerfile
-FROM node:18-alpine
-
+FROM node:20-alpine
 WORKDIR /app
-
-# Copy package files
 COPY package*.json ./
-
-# Install dependencies
-RUN npm ci --only=production
-
-# Copy source code
+RUN npm ci
 COPY . .
-
-# Build Next.js
+RUN npx prisma generate
 RUN npm run build
-
-# Expose port
 EXPOSE 3000
-
-# Start application
 CMD ["npm", "start"]
 ```
 
-### 2. Create .dockerignore
+### .dockerignore
 
 ```
 node_modules
@@ -89,88 +82,64 @@ node_modules
 .env
 ```
 
-### 3. Build & Run
+### Build & Run
 
 ```bash
-# Build image
 docker build -t reddit-reel-ai .
 
-# Run container
 docker run -p 3000:3000 \
   -e AUTH_SECRET=your-secret \
-  -e DATABASE_URL=file:./prisma/dev.db \
+  -e DATABASE_URL=postgresql://user:pass@host:5432/db \
+  -e AUTH_TRUST_HOST=true \
   reddit-reel-ai
 ```
 
 ---
 
-## ☁️ AWS EC2
+## ☁️ AWS EC2 / VPS
 
-Deploy to AWS EC2 instance.
-
-### 1. Launch EC2 Instance
+### 1. Launch Instance
 
 - AMI: Ubuntu 22.04 LTS
-- Instance Type: t3.medium (or larger)
+- Instance Type: t3.medium or larger
 - Security Group: Allow ports 80, 443, 3000
 
-### 2. Connect & Setup
+### 2. Setup
 
 ```bash
 ssh -i your-key.pem ubuntu@your-instance-ip
 
-# Update system
 sudo apt update && sudo apt upgrade -y
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs git
 
-# Install Node.js
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt install -y nodejs
-
-# Install Git
-sudo apt install -y git
-
-# Clone repository
-git clone https://github.com/yourusername/reddit-reel-ai.git
-cd reddit-reel-ai
-```
-
-### 3. Install Dependencies
-
-```bash
+git clone https://github.com/tarunkumar-sys/next_llm.git
+cd next_llm
 npm install
-npm run build
 ```
 
-### 4. Setup Environment
+### 3. Environment
 
 ```bash
 nano .env.local
-# Add your environment variables
+# Add all required env vars (see above)
 ```
 
-### 5. Setup PM2 (Process Manager)
+### 4. Build & Run with PM2
 
 ```bash
+npm run build
 sudo npm install -g pm2
-
-# Start application
 pm2 start npm --name "reddit-reel-ai" -- start
-
-# Setup auto-restart
-pm2 startup
-pm2 save
+pm2 startup && pm2 save
 ```
 
-### 6. Setup Nginx (Reverse Proxy)
+### 5. Nginx Reverse Proxy
 
 ```bash
 sudo apt install -y nginx
-
-# Create config
 sudo nano /etc/nginx/sites-available/default
 ```
-
-Add:
 
 ```nginx
 server {
@@ -188,38 +157,38 @@ server {
 }
 ```
 
-Restart Nginx:
-
 ```bash
 sudo systemctl restart nginx
 ```
 
-### 7. Setup SSL (Let's Encrypt)
+### 6. SSL (Let's Encrypt)
 
 ```bash
 sudo apt install -y certbot python3-certbot-nginx
-
 sudo certbot --nginx -d your-domain.com
 ```
 
 ---
 
-## 🔧 Environment Variables
+## 🔧 Environment Variables Reference
 
 ### Required
 
 ```env
-AUTH_SECRET=your-secret-key
-DATABASE_URL=file:./prisma/dev.db
+AUTH_SECRET=...          # Random secret for JWT signing
+DATABASE_URL=...         # PostgreSQL connection string
+AUTH_TRUST_HOST=true     # Required behind proxies / on non-Vercel hosts
 ```
 
 ### Optional
 
 ```env
+NEXTAUTH_URL=http://localhost:3000   # Local dev only
 OLLAMA_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.2
-REDDIT_CLIENT_ID=your-id
-REDDIT_CLIENT_SECRET=your-secret
+REDDIT_CLIENT_ID=...
+REDDIT_CLIENT_SECRET=...
+NEXT_TELEMETRY_DISABLED=1
 ```
 
 ---
@@ -227,29 +196,19 @@ REDDIT_CLIENT_SECRET=your-secret
 ## 📊 Monitoring
 
 ### Vercel Analytics
+Built-in — enabled via `@vercel/analytics` in layout.
 
-- Built-in performance monitoring
-- Real-time error tracking
-- Usage analytics
-
-### PM2 Monitoring
+### PM2
 
 ```bash
-# View logs
-pm2 logs reddit-reel-ai
-
-# Monitor resources
-pm2 monit
-
-# View status
-pm2 status
+pm2 logs reddit-reel-ai    # Live logs
+pm2 monit                  # Resource monitor
+pm2 status                 # Process status
 ```
 
 ---
 
-## 🔄 Continuous Deployment
-
-### GitHub Actions
+## 🔄 Continuous Deployment (GitHub Actions)
 
 Create `.github/workflows/deploy.yml`:
 
@@ -264,15 +223,15 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
       - run: npm ci
       - run: npm run build
       - run: npm run lint
       - name: Deploy to Vercel
-        run: vercel --prod
+        run: npx vercel --prod
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 ```
@@ -283,8 +242,15 @@ jobs:
 
 ### Build Fails
 
+```powershell
+# Windows
+Remove-Item -Recurse -Force .next, node_modules
+npm install
+npm run build
+```
+
 ```bash
-# Clear cache
+# macOS / Linux
 rm -rf .next node_modules
 npm install
 npm run build
@@ -293,48 +259,36 @@ npm run build
 ### Database Issues
 
 ```bash
-# Reset database
+# Check connection
+npx prisma db push --preview-feature
+
+# Reset (dev only)
 npx prisma db push --force-reset
 
-# View database
+# Browse data
 npx prisma studio
 ```
 
-### Memory Issues
+### Service Worker / PWA
 
-- Increase instance size
-- Enable swap space
-- Optimize images
+The service worker (`public/sw.js`) is only registered in production (`NODE_ENV=production`). In development, HMR works normally without SW interference.
 
-### Slow Performance
-
-- Enable caching
-- Optimize database queries
-- Use CDN for static assets
+To clear a stale SW in the browser:
+- DevTools → Application → Service Workers → Unregister
 
 ---
 
 ## 📋 Pre-Deployment Checklist
 
-- [ ] All tests pass
-- [ ] No console errors
-- [ ] Environment variables set
-- [ ] Database migrations run
-- [ ] SSL certificate configured
-- [ ] Backups configured
-- [ ] Monitoring enabled
-- [ ] Error tracking setup
-
----
-
-## 🆘 Support
-
-For deployment issues:
-1. Check logs: `pm2 logs` or Vercel dashboard
-2. Review error messages
-3. Check environment variables
-4. Verify database connection
-5. Open an issue on GitHub
+- [ ] `AUTH_SECRET` generated (`npx auth secret`)
+- [ ] `DATABASE_URL` points to a live PostgreSQL instance
+- [ ] `AUTH_TRUST_HOST=true` set for production
+- [ ] `NEXTAUTH_URL` **not** set on Vercel (auto-detected)
+- [ ] Reddit API credentials configured
+- [ ] `npx prisma db push` run against production DB
+- [ ] HTTPS enforced (automatic on Vercel)
+- [ ] `npm audit` — no critical vulnerabilities
+- [ ] Admin password changed from default after first login
 
 ---
 
