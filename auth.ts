@@ -59,10 +59,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.id as string;
       }
       return session;
+    },
+    // Fix: Use relative redirects to avoid hardcoded URLs
+    async redirect({ url, baseUrl }) {
+      // If url is relative, prepend baseUrl
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      // If url is on the same origin, allow it
+      if (new URL(url).origin === baseUrl) return url;
+      // Otherwise, redirect to dashboard
+      return `${baseUrl}/dashboard`;
     }
   },
   pages: {
     // If we build a custom sign-in page, we can route here later
     // signIn: '/login'
-  }
+  },
+  // Fix: Trust host for production deployments (Vercel, etc.)
+  trustHost: true,
 });

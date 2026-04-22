@@ -27,9 +27,9 @@ const fmt = (n: number) =>
       ? (n / 1e3).toFixed(1) + "K"
       : String(n);
 
+// Fix: Consistent SSR/CSR rendering - always return placeholder on server
 const ago = (utc: number) => {
   if (typeof window === "undefined") {
-    // Server-side: return a placeholder
     return "recently";
   }
   const s = Date.now() / 1000 - utc;

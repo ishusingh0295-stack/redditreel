@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, useScroll, useTransform, useInView } from "framer-motion";
+import dynamic from "next/dynamic";
 import AppIcon from "@/components/AppIcon";
 import LoginModal from "@/components/LoginModal";
 import NavActionsClient from "@/components/NavActionsClient";
@@ -20,6 +21,7 @@ import {
 
 /* ══════════════════════════════════════
    LENIS SMOOTH SCROLL INIT
+   Fix: Load only after component mount to prevent hydration issues
 ══════════════════════════════════════ */
 function useLenis() {
   useEffect(() => {
@@ -111,13 +113,14 @@ function FloatingCard({
   progress,
   zIndex = 1,
   scale: scaleProp = 1,
-}: ReelCardProps) {
+  isMounted = false, // Fix: Add mounted prop to control animations
+}: ReelCardProps & { isMounted?: boolean }) {
   const fs = (base: number) => Math.round(base * (width / 260));
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: scaleProp * 0.85, rotate: rotate - 10 }}
-      animate={{ opacity: 1, scale: scaleProp, rotate }}
+      initial={false} // Fix: Disable initial animation
+      animate={isMounted ? { opacity: 1, scale: scaleProp, rotate } : { opacity: 0, scale: scaleProp * 0.85, rotate: rotate - 10 }}
       transition={{ duration: 1.1, delay, ease: [0.22, 1, 0.36, 1] }}
       style={{
         position: "absolute",
@@ -347,23 +350,34 @@ export default function LandingPage({
     }
   }, [searchParams]);
 
-  // Responsive check for dynamic layout adjustments
+  // Fix: Responsive check - start with false to match SSR, update after mount
   const [isMobile, setIsMobile] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  
   useEffect(() => {
+    setIsMounted(true);
     const check = () => setIsMobile(window.innerWidth < 1024);
     check();
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  /* Typing animation for badge */
+  /* Typing animation for badge - Fix: Start with full text to prevent hydration mismatch */
   const badgeText = "Just launched — be among the first";
-  const [typed, setTyped] = useState("");
+  const [typed, setTyped] = useState(badgeText); // Start with full text for SSR
+  const [isAnimating, setIsAnimating] = useState(false);
+  
   useEffect(() => {
+    // Only animate on client after mount
+    setTyped("");
+    setIsAnimating(true);
     let i = 0;
     const id = setInterval(() => {
       setTyped(badgeText.slice(0, i + 1));
-      if (++i >= badgeText.length) clearInterval(id);
+      if (++i >= badgeText.length) {
+        clearInterval(id);
+        setIsAnimating(false);
+      }
     }, 42);
     return () => clearInterval(id);
   }, []);
@@ -417,8 +431,8 @@ export default function LandingPage({
       >
         {/* ══ STICKY NAV ══ */}
         <motion.nav
-          initial={{ y: -80, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
+          initial={false} // Fix: Disable initial animation to prevent layout shift
+          animate={isMounted ? { y: 0, opacity: 1 } : { y: -80, opacity: 0 }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
           className="landing-nav"
           style={{
@@ -486,7 +500,7 @@ export default function LandingPage({
             paddingBottom: "clamp(40px, 6vh, 80px)",
             position: "relative",
             overflow: "visible",
-            opacity: heroOpacity,
+            opacity: isMounted ? heroOpacity : 1, // Fix: Prevent opacity flash on mount
           }}
         >
           {/* Background grid */}
@@ -541,8 +555,8 @@ export default function LandingPage({
           >
             {/* Badge */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={false} // Fix: Disable initial animation
+              animate={isMounted ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
               transition={{ duration: 0.6, delay: 0.1 }}
               style={{
                 display: "inline-flex",
@@ -562,21 +576,23 @@ export default function LandingPage({
             >
               <span style={{ fontSize: 8, color: "#ff2d55" }}>●</span>
               {typed}
-              <span
-                style={{
-                  animation: "glitch1 1s infinite",
-                  opacity: typed.length < badgeText.length ? 1 : 0,
-                }}
-              >
-                |
-              </span>
+              {isAnimating && (
+                <span
+                  style={{
+                    animation: "glitch1 1s infinite",
+                    opacity: typed.length < badgeText.length ? 1 : 0,
+                  }}
+                >
+                  |
+                </span>
+              )}
             </motion.div>
 
             {/* Main Heading */}
             <div style={{ overflow: "hidden", marginBottom: 8 }}>
               <motion.h1
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
+                initial={false} // Fix: Disable initial animation
+                animate={isMounted ? { y: 0 } : { y: "100%" }}
                 transition={{
                   duration: 0.85,
                   delay: 0.25,
@@ -596,8 +612,8 @@ export default function LandingPage({
             </div>
             <div style={{ overflow: "hidden", marginBottom: 24 }}>
               <motion.div
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
+                initial={false} // Fix: Disable initial animation
+                animate={isMounted ? { y: 0 } : { y: "100%" }}
                 transition={{
                   duration: 0.85,
                   delay: 0.38,
@@ -626,8 +642,8 @@ export default function LandingPage({
 
             {/* Sub-headline */}
             <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={false} // Fix: Disable initial animation
+              animate={isMounted ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
               transition={{ duration: 0.7, delay: 0.55 }}
               style={{
                 fontSize: "clamp(14px, 1.8vw, 17px)",
@@ -650,8 +666,8 @@ export default function LandingPage({
 
             {/* CTAs */}
             <motion.div
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={false} // Fix: Disable initial animation
+              animate={isMounted ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
               transition={{ duration: 0.7, delay: 0.65 }}
               className="hero-ctas"
               style={{
@@ -744,6 +760,7 @@ export default function LandingPage({
               subreddit="Animewallpaper"
               title="Lize Helesta [Nijisanji]"
               author="V-Artiste"
+              isMounted={isMounted}
             />
 
             {/* Card 2 — middle */}
@@ -760,6 +777,7 @@ export default function LandingPage({
               subreddit="PrettyGirls"
               title="Olivia King — Natural Light"
               author="PortraitPro"
+              isMounted={isMounted}
             />
 
             {/* Card 1 — front (least rotated, full size, highest z) */}
@@ -778,62 +796,65 @@ export default function LandingPage({
               title="Breathtaking flower timelapse"
               author="nature_lover"
               progress={65}
+              isMounted={isMounted}
             />
           </div>
 
-          {/* Scroll hint */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.5 }}
-            className="scroll-hint"
-            style={{
-              position: "absolute",
-              bottom: 30,
-              left: "50%",
-              transform: "translateX(-50%)",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
+          {/* Scroll hint - only show after mount */}
+          {isMounted && (
             <motion.div
-              animate={{ y: [0, 8, 0] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.5 }}
+              className="scroll-hint"
               style={{
-                width: 24,
-                height: 38,
-                borderRadius: 12,
-                border: "1.5px solid rgba(255,255,255,.2)",
+                position: "absolute",
+                bottom: 30,
+                left: "50%",
+                transform: "translateX(-50%)",
                 display: "flex",
-                alignItems: "flex-start",
-                justifyContent: "center",
-                paddingTop: 6,
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 8,
               }}
             >
               <motion.div
-                animate={{ y: [0, 12, 0], opacity: [1, 0, 1] }}
+                animate={{ y: [0, 8, 0] }}
                 transition={{ duration: 1.5, repeat: Infinity }}
                 style={{
-                  width: 4,
-                  height: 4,
-                  borderRadius: "50%",
-                  background: "rgba(255,255,255,.4)",
+                  width: 24,
+                  height: 38,
+                  borderRadius: 12,
+                  border: "1.5px solid rgba(255,255,255,.2)",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "center",
+                  paddingTop: 6,
                 }}
-              />
+              >
+                <motion.div
+                  animate={{ y: [0, 12, 0], opacity: [1, 0, 1] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                  style={{
+                    width: 4,
+                    height: 4,
+                    borderRadius: "50%",
+                    background: "rgba(255,255,255,.4)",
+                  }}
+                />
+              </motion.div>
+              <span
+                style={{
+                  fontSize: 10,
+                  color: "rgba(255,255,255,.25)",
+                  letterSpacing: ".5px",
+                  textTransform: "uppercase",
+                }}
+              >
+                scroll
+              </span>
             </motion.div>
-            <span
-              style={{
-                fontSize: 10,
-                color: "rgba(255,255,255,.25)",
-                letterSpacing: ".5px",
-                textTransform: "uppercase",
-              }}
-            >
-              scroll
-            </span>
-          </motion.div>
+          )}
         </motion.section>
 
         {/* ══ MARQUEE STRIP ══ */}

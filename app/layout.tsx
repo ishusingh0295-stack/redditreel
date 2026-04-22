@@ -2,10 +2,14 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/ToastContext";
-import SecurityInitializer from "@/components/SecurityInitializer";
 import { Analytics } from "@vercel/analytics/next";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ 
+  subsets: ["latin"],
+  display: 'swap', // Optimize font loading - prevents layout shift
+  preload: true,
+  variable: '--font-inter',
+});
 
 export const metadata: Metadata = {
   title: "Reddit Reel AI — Discover Videos You'll Love",
@@ -21,11 +25,11 @@ export const metadata: Metadata = {
   ],
   icons: {
     icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/app-icon.svg", type: "image/svg+xml" },
       { url: "/favicon.ico", sizes: "any" },
     ],
     shortcut: "/favicon.ico",
-    apple: "/icon.svg",
+    apple: "/app-icon.svg",
   },
   manifest: "/manifest.json",
   applicationName: "Reddit Reel AI",
@@ -54,9 +58,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.className} antialiased`}>
-        <SecurityInitializer />
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body 
+        className={`${inter.className} antialiased`} 
+        suppressHydrationWarning
+        style={{ position: 'relative' }} // Fix: Ensure proper positioning for scroll calculations
+      >
         <ToastProvider>{children}</ToastProvider>
         <Analytics />
       </body>
